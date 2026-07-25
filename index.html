@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Welcome to Chakravyuh 2K26, the premier annual inter-college sports festival hosted by IMSEC Engineering College, Ghaziabad. Register your squad, track live schedules, match scores, and fixtures." />
+    <meta name="keywords" content="Chakravyuh, Chakravyuh 2K26, IMSEC Engineering College, IMSEC Sports Fest, college sports festival, sports registration portal, inter-college sports" />
+    <meta name="author" content="IMSEC Engineering College Sports Tech Cell" />
+    <title>Chakravyuh 2K26 | Annual Sports Festival | IMSEC Engineering College</title>
+    <meta id="theme-color-meta" name="theme-color" content="#f97316" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:title" content="Chakravyuh 2K26 | IMSEC Sports Festival" />
+    <meta property="og:description" content="Register for Chakravyuh 2K26 — IMSEC Engineering College's premier annual sports festival. Events, schedules, gallery, and live registration tracking." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/chakravyuh-logo.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Chakravyuh 2K26 | IMSEC Sports Festival" />
+    <meta name="twitter:description" content="Register for Chakravyuh 2K26 — events, schedules, and registration tracking." />
+    <script>
+      (function() {
+        try {
+          const theme = localStorage.getItem('chakravyuh_theme') || 'inferno';
+          document.documentElement.dataset.theme = theme;
+          
+          // Match initial theme meta color
+          const metaColors = {
+            inferno: '#f97316',
+            cyber: '#06b6d4',
+            royal: '#a855f7',
+            emerald: '#10b981',
+            crimson: '#f43f5e'
+          };
+          const metaColor = metaColors[theme] || '#f97316';
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', metaColor);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

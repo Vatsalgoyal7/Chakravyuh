@@ -1,0 +1,171 @@
+{
+  "collections": {
+    "users": {
+      "description": "Contains user records for Super Admins and Coordinators with access controls.",
+      "documents": {
+        "admin_user_id_placeholder": {
+          "email": "superadmin@imsec.ac.in",
+          "displayName": "Chakravyuh Chief Admin",
+          "role": "super_admin",
+          "assignedSports": [],
+          "createdAt": "2026-07-15T00:00:00Z",
+          "updatedAt": "2026-07-15T00:00:00Z"
+        },
+        "coordinator_user_id_placeholder": {
+          "email": "cricket.coord@imsec.ac.in",
+          "displayName": "Cricket Student Coordinator",
+          "role": "coordinator",
+          "assignedSports": ["cricket_2026"],
+          "createdAt": "2026-07-15T00:00:00Z",
+          "updatedAt": "2026-07-15T00:00:00Z"
+        }
+      }
+    },
+    "events": {
+      "description": "Stores individual and team sports events hosted during Chakravyuh 2K26.",
+      "documents": {
+        "cricket_2026": {
+          "title": "Chakravyuh Cricket League",
+          "category": "Outdoor",
+          "type": "team",
+          "minTeamSize": 11,
+          "maxTeamSize": 15,
+          "rules": "1. Standard ICC T20 rules apply. 2. Matches will be played with leather balls. 3. Proper kit is mandatory.",
+          "venue": "IMSEC Main Ground",
+          "coordinators": [
+            {
+              "name": "Amit Sharma",
+              "phone": "9876543210",
+              "email": "amit.sharma@imsec.ac.in"
+            }
+          ],
+          "image": "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800",
+          "registrationDeadline": "2026-10-15T23:59:59Z",
+          "registrationCount": 0,
+          "maxRegistrations": 32,
+          "isActive": true,
+          "createdAt": "2026-07-15T00:00:00Z",
+          "updatedAt": "2026-07-15T00:00:00Z"
+        },
+        "table_tennis_singles": {
+          "title": "Table Tennis Singles (Boys/Girls)",
+          "category": "Indoor",
+          "type": "individual",
+          "minTeamSize": 1,
+          "maxTeamSize": 1,
+          "rules": "1. ITTF rules apply. 2. Matches will be best of 3 sets.",
+          "venue": "IMSEC Indoor Sports Hall",
+          "coordinators": [
+            {
+              "name": "Priya Verma",
+              "phone": "9812345678",
+              "email": "priya.verma@imsec.ac.in"
+            }
+          ],
+          "image": "https://images.unsplash.com/photo-1538388149352-0a3a1eb02109?w=800",
+          "registrationDeadline": "2026-10-15T23:59:59Z",
+          "registrationCount": 0,
+          "maxRegistrations": 64,
+          "isActive": true,
+          "createdAt": "2026-07-15T00:00:00Z",
+          "updatedAt": "2026-07-15T00:00:00Z"
+        }
+      }
+    },
+    "registrations": {
+      "description": "Handles registrations for both team and individual categories. Uses eventId and a duplicateCheckHash to prevent double entries.",
+      "documents": {
+        "reg_cricket_team_abc": {
+          "eventId": "cricket_2026",
+          "eventTitle": "Chakravyuh Cricket League",
+          "sportType": "team",
+          "status": "pending",
+          "registeredAt": "2026-07-15T01:00:00Z",
+          "updatedAt": "2026-07-15T01:00:00Z",
+          "leadName": "Rajesh Kumar",
+          "leadEmail": "rajesh.kumar@gmail.com",
+          "leadPhone": "9898989898",
+          "leadCollege": "IMSEC Engineering College",
+          "leadRollNo": "2301430100055",
+          "leadBranch": "CSE",
+          "leadYear": "3rd Year",
+          "teamName": "IMSEC Avengers",
+          "members": [
+            {
+              "name": "Suresh Raina",
+              "email": "suresh@gmail.com",
+              "phone": "9123456789",
+              "rollNo": "2301430100060",
+              "college": "IMSEC Engineering College"
+            }
+          ],
+          "duplicateCheckHash": "cricket_2026_2301430100055",
+          "remarks": "",
+          "approvedBy": "",
+          "approvedAt": ""
+        }
+      }
+    },
+    "gallery": {
+      "description": "Uploads and maintains gallery images for Chakravyuh events.",
+      "documents": {
+        "gallery_img_01": {
+          "imageUrl": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800",
+          "caption": "Inauguration Ceremony Chakravyuh 2K25",
+          "category": "Inauguration",
+          "uploadedBy": "admin_user_id_placeholder",
+          "createdAt": "2026-07-15T00:00:00Z"
+        }
+      }
+    },
+    "notifications": {
+      "description": "Broadcasts live announcements, schedule updates, or general notifications on the home page.",
+      "documents": {
+        "notif_01": {
+          "title": "Registrations Open!",
+          "message": "Registrations for Chakravyuh 2K26 are now live. Register your team before the October 15th deadline.",
+          "type": "urgent",
+          "isActive": true,
+          "createdAt": "2026-07-15T00:00:00Z",
+          "expiresAt": "2026-10-30T00:00:00Z"
+        }
+      }
+    },
+    "contacts": {
+      "description": "Directory of emergency contacts, college authority sports heads, and chief organizers.",
+      "documents": {
+        "contact_01": {
+          "name": "Dr. Manoj Kumar Singh",
+          "designation": "Director of Physical Education & Sports",
+          "phone": "9415123456",
+          "email": "sports.director@imsec.ac.in",
+          "order": 1
+        }
+      }
+    },
+    "rules_general": {
+      "description": "Global general guidelines and code of conduct for Chakravyuh 2K26 participants.",
+      "documents": {
+        "general_rules_doc": {
+          "title": "General Code of Conduct",
+          "content": "1. All players must bring their valid college ID cards.\n2. Indiscipline or misbehavior on the ground will lead to immediate team disqualification.\n3. The decision of the chief referee will be final and binding.\n4. Outstation teams must pre-arrange accommodation details with coordinators.",
+          "updatedAt": "2026-07-15T00:00:00Z"
+        }
+      }
+    },
+    "schedules": {
+      "description": "Live scheduling of matches across various venues.",
+      "documents": {
+        "sched_match_01": {
+          "day": 1,
+          "date": "2026-11-01T00:00:00Z",
+          "title": "Cricket Match - IMSEC vs ABES",
+          "timeSlot": "10:00 AM - 01:00 PM",
+          "venue": "IMSEC Play Ground",
+          "status": "scheduled",
+          "updatedAt": "2026-07-15T00:00:00Z"
+        }
+      }
+    }
+  }
+}

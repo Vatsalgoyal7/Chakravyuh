@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="IMSEC Engineering College">
+  <defs>
+    <linearGradient id="imsec" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="24" fill="#ffffff"/>
+  <rect x="16" y="16" width="168" height="168" rx="18" fill="none" stroke="url(#imsec)" stroke-width="4"/>
+  <text x="100" y="78" text-anchor="middle" fill="#1e3a8a" font-family="Arial,sans-serif" font-size="28" font-weight="800">IMSEC</text>
+  <text x="100" y="108" text-anchor="middle" fill="#334155" font-family="Arial,sans-serif" font-size="12" font-weight="600">ENGINEERING COLLEGE</text>
+  <text x="100" y="132" text-anchor="middle" fill="#64748b" font-family="Arial,sans-serif" font-size="10">GHAZIABAD</text>
+</svg>

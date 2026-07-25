@@ -1,0 +1,6 @@
+{
+  "name": "CHAKRAVYUH 2K26",
+  "description": "Official dynamic event registration, schedule, and admin portal for the annual sports festival of IMSEC Engineering College, Ghaziabad.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
