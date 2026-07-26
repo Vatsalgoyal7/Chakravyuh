@@ -260,7 +260,7 @@ export default function AuthScreen({
             <Trophy className="w-6 h-6 text-[#07080a] stroke-[2.5]" />
           </div>
           <h2 className="text-xs uppercase tracking-[0.25em] text-orange-500 font-bold mb-1.5 font-mono">
-            IMSEC Engineering College, Ghaziabad
+            IMS Engineering College, Ghaziabad
           </h2>
           <h1 className="text-2xl font-black tracking-widest text-white font-mono uppercase">
             CHAKRAVYUH <span className="text-orange-500">2K26</span>

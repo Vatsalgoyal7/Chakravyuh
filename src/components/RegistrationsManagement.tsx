@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
 import { Registration, SportEvent, TeamMember } from "../types";
+import {
+  filterEventsByUserScope,
+  getRegistrationEventFilter,
+  canVerifyPayments,
+} from "../lib/permissions";
 import { 
   Users, 
   Search, 
@@ -54,10 +59,11 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
   const [leadName, setLeadName] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
-  const [leadCollege, setLeadCollege] = useState("IMSEC Engineering College");
+  const [leadCollege, setLeadCollege] = useState("IMS Engineering College");
   const [leadRollNo, setLeadRollNo] = useState("");
   const [leadBranch, setLeadBranch] = useState("CSE");
   const [leadYear, setLeadYear] = useState("3rd Year");
+  const [manualPaymentStatus, setManualPaymentStatus] = useState<"pending_payment" | "payment_verified" | "ims_student">("pending_payment");
 
   // Dynamic team members
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -73,15 +79,14 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     setIsLoading(true);
     try {
       const evs = await dbService.getEvents();
-      const authorizedEventIds = user.role === "coordinator" ? user.assignedSports : undefined;
+      const authorizedEventIds = getRegistrationEventFilter(user, evs);
       const regs = await dbService.getRegistrations(authorizedEventIds);
 
-      // Filter based on Coordinator access permissions
-      if (user.role === "coordinator") {
-        const authorizedEvents = evs.filter(e => user.assignedSports.includes(e.id));
-        const authEventIds = authorizedEvents.map(e => e.id);
-        setEvents(authorizedEvents);
-        setRegistrations(regs.filter(r => authEventIds.includes(r.eventId)));
+      const scopedEvents = filterEventsByUserScope(user, evs);
+      if (user.role === "coordinator" || user.role === "admin") {
+        const authEventIds = scopedEvents.map((e) => e.id);
+        setEvents(scopedEvents);
+        setRegistrations(regs.filter((r) => authEventIds.includes(r.eventId)));
       } else {
         setEvents(evs);
         setRegistrations(regs);
@@ -109,7 +114,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
           email: "",
           phone: "",
           rollNo: "",
-          college: "IMSEC Engineering College"
+          college: "IMS Engineering College"
         }));
         setMembers(slots);
       }
@@ -154,9 +159,10 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       leadRollNo,
       leadBranch,
       leadYear,
-      teamName: event.type === "team" ? teamName || "Unnamed Team" : undefined,
+      teamName: teamName.trim() || undefined,
       members: event.type === "team" ? activeMembers : undefined,
-      duplicateCheckHash: `${selectedEventId}_${leadRollNo}`
+      duplicateCheckHash: `${selectedEventId}_${leadRollNo}`,
+      paymentStatus: manualPaymentStatus
     };
 
     try {
@@ -181,6 +187,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       setLeadPhone("");
       setLeadRollNo("");
       setMembers([]);
+      setManualPaymentStatus("pending_payment");
       loadData();
     } catch (err: any) {
       alert(err.message || "Failed to save registration due to database constraints.");
@@ -226,6 +233,17 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       setRegistrations(prev => prev.map(r => r.id === updated.id ? updated : r));
       setSelectedReg(null);
       setShowStatusModal(false);
+
+      await dbService.logActivity({
+        actorUid: user.uid,
+        actorName: user.displayName,
+        actorRole: user.role,
+        action: "registration_status_changed",
+        targetType: "registration",
+        targetId: updated.id,
+        summary: `${targetStatus === "approved" ? "Approved" : "Rejected"} registration for ${updated.eventTitle} (${updated.leadName})`,
+        metadata: { status: targetStatus },
+      });
     } catch (err) {
       console.error(err);
       alert("Error processing transaction.");
@@ -268,7 +286,8 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     const headers = [
       "ID", "Sport Title", "Sport Type", "Status", "Registered At", 
       "Team Name", "Captain Name", "Captain Email", "Captain Phone", 
-      "Captain RollNo", "Captain College", "Captain Branch", "Captain Year", "Total Team Members"
+      "Captain RollNo", "Captain College", "Captain Branch", "Captain Year", "Total Team Members",
+      "UTR Number", "Payment Status"
     ];
 
     if (format === "csv") {
@@ -288,7 +307,9 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
           `"${r.leadCollege.replace(/"/g, '""')}"`,
           r.leadBranch,
           r.leadYear,
-          r.members ? r.members.length : 0
+          r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1),
+          r.utrNumber ? `"${r.utrNumber.replace(/"/g, '""')}"` : "",
+          r.paymentStatus || "unpaid"
         ];
         fileContent += row.join(",") + "\n";
       });
@@ -313,7 +334,9 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
         fileContent += `<td>${r.leadCollege}</td>`;
         fileContent += `<td>${r.leadBranch}</td>`;
         fileContent += `<td>${r.leadYear}</td>`;
-        fileContent += `<td>${r.members ? r.members.length : 0}</td>`;
+        fileContent += `<td>${r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1)}</td>`;
+        fileContent += `<td>${r.utrNumber || ""}</td>`;
+        fileContent += `<td>${r.paymentStatus || "unpaid"}</td>`;
         fileContent += "</tr>";
       });
       fileContent += "</tbody></table></body></html>";
@@ -411,13 +434,12 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                 </select>
               </div>
 
-              {/* Team Name if applicable */}
-              {selectedEventId && events.find(e => e.id === selectedEventId)?.type === "team" && (
+              {/* Team Name optional for all sports */}
+              {selectedEventId && (
                 <div className="space-y-2">
-                  <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Roster / Team Name *</label>
+                  <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Roster / Team Name (Optional)</label>
                   <input
                     type="text"
-                    required
                     placeholder="e.g., IMSEC Strykers"
                     className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white"
                     value={teamName}
@@ -469,7 +491,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="space-y-1">
                   <label className="block text-[10px] text-gray-500 font-mono">Phone Number *</label>
                   <input
@@ -514,6 +536,19 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                     <option value="2nd Year">2nd Year</option>
                     <option value="3rd Year">3rd Year</option>
                     <option value="4th Year">4th Year</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] text-gray-500 font-mono">Payment Status</label>
+                  <select
+                    className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 rounded-lg text-xs text-white"
+                    value={manualPaymentStatus}
+                    onChange={(e: any) => setManualPaymentStatus(e.target.value)}
+                  >
+                    <option value="pending_payment">Unpaid / Pending</option>
+                    <option value="payment_verified">Paid / Cash</option>
+                    <option value="ims_student">Exempt (IMSEC Student)</option>
                   </select>
                 </div>
               </div>
@@ -748,12 +783,14 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                         {reg.paymentStatus && (
                           <span className={`mt-1 px-2 py-0.5 rounded-full text-[9px] font-bold font-mono uppercase border inline-flex items-center gap-1 ${
                             reg.paymentStatus === "payment_verified" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+                            reg.paymentStatus === "ims_student" ? "bg-purple-500/10 border-purple-500/30 text-purple-400" :
                             reg.paymentStatus === "payment_submitted" ? "bg-blue-500/10 border-blue-500/30 text-blue-400 animate-pulse" :
                             reg.paymentStatus === "payment_rejected" ? "bg-red-500/10 border-red-500/30 text-red-400" :
                             "bg-gray-500/10 border-gray-500/30 text-gray-400"
                           }`}>
                             <QrCode className="w-2.5 h-2.5" />
                             {reg.paymentStatus === "payment_verified" ? "Paid ✓" :
+                             reg.paymentStatus === "ims_student" ? "IMSEC Exemption" :
                              reg.paymentStatus === "payment_submitted" ? "UTR Pending" :
                              reg.paymentStatus === "payment_rejected" ? "Pay Rejected" : "Unpaid"}
                           </span>
@@ -800,7 +837,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                         )}
 
                         {/* UTR Verify buttons — add-on, only shows when student submitted payment */}
-                        {reg.paymentStatus === "payment_submitted" && user.role === "super_admin" && (
+                        {reg.paymentStatus === "payment_submitted" && canVerifyPayments(user) && (
                           <>
                             <button
                               onClick={async () => {
@@ -945,11 +982,12 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                         <span className="text-gray-500">Payment Status:</span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
                           selectedReg.paymentStatus === "payment_verified" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+                          selectedReg.paymentStatus === "ims_student" ? "bg-purple-500/10 border-purple-500/30 text-purple-400" :
                           selectedReg.paymentStatus === "payment_submitted" ? "bg-blue-500/10 border-blue-500/30 text-blue-400" :
                           selectedReg.paymentStatus === "payment_rejected" ? "bg-red-500/10 border-red-500/30 text-red-400" :
                           "bg-gray-500/10 border-gray-500/30 text-gray-400"
                         }`}>
-                          {selectedReg.paymentStatus.replace(/_/g, " ")}
+                          {selectedReg.paymentStatus === "ims_student" ? "IMSEC Exemption" : selectedReg.paymentStatus.replace(/_/g, " ")}
                         </span>
                       </div>
                       {selectedReg.utrNumber && (
@@ -964,7 +1002,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                           <span className="text-gray-300">{new Date(selectedReg.paymentSubmittedAt).toLocaleString()}</span>
                         </div>
                       )}
-                      {selectedReg.paymentStatus === "payment_submitted" && user.role === "super_admin" && (
+                      {selectedReg.paymentStatus === "payment_submitted" && canVerifyPayments(user) && (
                         <div className="flex gap-2 pt-1">
                           <button
                             onClick={async () => {

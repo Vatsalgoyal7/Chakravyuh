@@ -24,7 +24,10 @@ import {
   AdminUser,
   AboutStaff,
   AboutSection,
-  PublicRegistrationStatus
+  PublicRegistrationStatus,
+  FAQItem,
+  ActivityLogEntry,
+  RevenueAnalytics
 } from "../types";
 
 // Safe UUID generator - works on both HTTP and HTTPS (crypto.randomUUID only works on HTTPS)
@@ -382,7 +385,7 @@ const DEFAULT_REGISTRATIONS: Registration[] = [
     leadName: "Rajesh Kumar",
     leadEmail: "rajesh.kumar@gmail.com",
     leadPhone: "9898989898",
-    leadCollege: "IMSEC Engineering College",
+    leadCollege: "IMS Engineering College",
     leadRollNo: "2301430100055",
     leadBranch: "CSE",
     leadYear: "3rd Year",
@@ -393,7 +396,7 @@ const DEFAULT_REGISTRATIONS: Registration[] = [
         email: "suresh@gmail.com",
         phone: "9123456789",
         rollNo: "2301430100060",
-        college: "IMSEC Engineering College"
+        college: "IMS Engineering College"
       }
     ],
     duplicateCheckHash: "cricket_2026_2301430100055",
@@ -422,6 +425,58 @@ const DEFAULT_ANNOUNCEMENTS: Announcement[] = [
     isActive: true,
     createdAt: "2026-07-15T00:00:00Z",
     expiresAt: "2026-10-30T00:00:00Z"
+  }
+];
+
+const DEFAULT_FAQS: FAQItem[] = [
+  {
+    id: "faq_01",
+    q: "Who is eligible to participate in Chakravyuh 2K26?",
+    a: "All undergraduate and postgraduate students enrolled in recognized universities and AICTE/UGC approved engineering or management colleges are eligible. Bringing a physical college identity card with a current fee slip is absolutely mandatory during verification.",
+    order: 1,
+    updatedAt: "2026-07-15T00:00:00Z"
+  },
+  {
+    id: "faq_02",
+    q: "Is there an entry or registration fee for the sports?",
+    a: "Yes, standard institutional registration fees apply for individual and team sports to cover logistics, referee charges, and event kit arrangements. Specific fee structures will be shared by the respective sports coordinators upon roster validation.",
+    order: 2,
+    updatedAt: "2026-07-15T00:00:00Z"
+  },
+  {
+    id: "faq_03",
+    q: "Can a player register for multiple sports disciplines?",
+    a: "Yes, players may participate in multiple events as long as matches do not overlap. However, the organizing committee will not delay or reschedule any fixtures if an athlete has scheduling conflicts due to participating in multiple sports.",
+    order: 3,
+    updatedAt: "2026-07-15T00:00:00Z"
+  },
+  {
+    id: "faq_04",
+    q: "How will match schedules and court brackets be published?",
+    a: "Fixture brackets, match day schedules, and ground layouts are published directly under the 'Schedule' page on this website. This list updates dynamically in real-time, displaying live indicators ('LIVE NOW' badges) for ongoing games.",
+    order: 4,
+    updatedAt: "2026-07-15T00:00:00Z"
+  },
+  {
+    id: "faq_05",
+    q: "Is accommodation available for outstation teams?",
+    a: "Outstation teams can request campus hostel accommodation during registration. Please get in touch with the Physical Education Director or student coordinators directly via the 'Rules & Contacts' directory to pre-arrange lodging.",
+    order: 5,
+    updatedAt: "2026-07-15T00:00:00Z"
+  },
+  {
+    id: "faq_06",
+    q: "What is the procedure if we need to modify our team squad roster?",
+    a: "Rosters cannot be edited online once submitted to prevent database fraud. If you need to make player substitutions, the Team Captain must contact the specific student coordinator with official approval from your college's sports department.",
+    order: 6,
+    updatedAt: "2026-07-15T00:00:00Z"
+  },
+  {
+    id: "faq_07",
+    q: "How do I track my registration status or recover a lost tracking code?",
+    a: "You can track your registration status in real-time under the 'Track Status' page. If you lost your tracking code, click 'Forgot Tracking Code' on the Track Status page or the link in the home screen hero section, and search using your registered college Roll Number or Email ID. Internal IMS Engineering College students do not require online payment verification.",
+    order: 7,
+    updatedAt: "2026-07-26T00:00:00Z"
   }
 ];
 
@@ -692,11 +747,14 @@ export const dbService = {
       updatedAt: timestamp,
     };
 
+    // Sanitize to remove undefined fields which crash Firestore set operations
+    const sanitizedReg = JSON.parse(JSON.stringify(fullReg));
+
     // Duplicate prevention validation
     if (isFirebaseConfigured && db) {
       try {
         const batch = writeBatch(db);
-        batch.set(doc(db, "registrations", id), fullReg);
+        batch.set(doc(db, "registrations", id), sanitizedReg);
         batch.set(doc(db, "registration_status", trackingCode), {
           trackingCode,
           eventId: reg.eventId,
@@ -708,7 +766,7 @@ export const dbService = {
           checkedIn: false
         });
         await batch.commit();
-        return fullReg;
+        return sanitizedReg;
       } catch (err) {
         console.error("Firestore saveRegistration failed:", err);
         throw new Error("Registration could not be saved. This roll number may already be registered for the selected event.");
@@ -720,7 +778,7 @@ export const dbService = {
     if (local.some(item => item.duplicateCheckHash === reg.duplicateCheckHash)) {
       throw new Error("Registration already exists for this roll number and sport.");
     }
-    local.push(fullReg);
+    local.push(sanitizedReg);
     setLocal("registrations", local);
 
     // Update count in events locally
@@ -737,13 +795,51 @@ export const dbService = {
   async getPublicRegistrationStatus(trackingCode: string): Promise<PublicRegistrationStatus | null> {
     const code = trackingCode.trim().toUpperCase();
     if (isFirebaseConfigured && db) {
-      const statusDoc = await getDoc(doc(db, "registration_status", code));
-      return statusDoc.exists() ? statusDoc.data() as PublicRegistrationStatus : null;
+      try {
+        const statusDoc = await getDoc(doc(db, "registration_status", code));
+        if (statusDoc.exists()) {
+          return statusDoc.data() as PublicRegistrationStatus;
+        }
+
+        // Try querying registrations collection by trackingCode directly
+        const q = query(collection(db, "registrations"), where("trackingCode", "==", code));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          const reg = qSnap.docs[0].data() as Registration;
+          return {
+            trackingCode: reg.trackingCode,
+            eventTitle: reg.eventTitle,
+            sportType: reg.sportType,
+            teamName: reg.teamName,
+            status: reg.status,
+            registeredAt: reg.registeredAt,
+            checkedIn: Boolean(reg.checkedIn)
+          };
+        }
+
+        // Try direct lookup by ID (keep original casing)
+        const regDoc = await getDoc(doc(db, "registrations", trackingCode.trim()));
+        if (regDoc.exists()) {
+          const reg = regDoc.data() as Registration;
+          return {
+            trackingCode: reg.trackingCode && reg.trackingCode !== "undefined" ? reg.trackingCode : reg.id,
+            eventTitle: reg.eventTitle,
+            sportType: reg.sportType,
+            teamName: reg.teamName,
+            status: reg.status,
+            registeredAt: reg.registeredAt,
+            checkedIn: Boolean(reg.checkedIn)
+          };
+        }
+      } catch (err) {
+        console.error("Firestore getPublicRegistrationStatus fallback failed:", err);
+      }
+      return null;
     }
     const registration = getLocal<Registration>("registrations", DEFAULT_REGISTRATIONS)
-      .find(item => item.trackingCode === code || item.id === code);
+      .find(item => item.trackingCode === code || item.id === code || item.id.toUpperCase() === code);
     return registration ? {
-      trackingCode: registration.trackingCode,
+      trackingCode: registration.trackingCode && registration.trackingCode !== "undefined" ? registration.trackingCode : registration.id,
       eventTitle: registration.eventTitle,
       sportType: registration.sportType,
       teamName: registration.teamName,
@@ -751,6 +847,50 @@ export const dbService = {
       registeredAt: registration.registeredAt,
       checkedIn: Boolean(registration.checkedIn)
     } : null;
+  },
+
+  async getRegistrationsByLookup(queryValue: string): Promise<Registration[]> {
+    const searchVal = queryValue.trim().toLowerCase();
+    if (isFirebaseConfigured && db) {
+      try {
+        const registrationsColl = collection(db, "registrations");
+        const q1 = query(registrationsColl, where("leadRollNo", "==", queryValue.trim()));
+        const q2 = query(registrationsColl, where("leadRollNo", "==", queryValue.trim().toUpperCase()));
+        const q3 = query(registrationsColl, where("leadEmail", "==", searchVal));
+        
+        const [snap1, snap2, snap3] = await Promise.all([
+          getDocs(q1),
+          getDocs(q2),
+          getDocs(q3)
+        ]);
+        
+        const map = new Map<string, Registration>();
+        const addDocs = (snap: any) => {
+          snap.docs.forEach((doc: any) => {
+            const data = doc.data() as Registration;
+            const tCode = data.trackingCode && data.trackingCode !== "undefined" ? data.trackingCode : doc.id;
+            map.set(doc.id, { id: doc.id, ...data, trackingCode: tCode } as Registration);
+          });
+        };
+        
+        addDocs(snap1);
+        addDocs(snap2);
+        addDocs(snap3);
+        
+        return Array.from(map.values());
+      } catch (err) {
+        console.error("Firestore getRegistrationsByLookup failed:", err);
+      }
+    }
+    const allRegs = getLocal<Registration>("registrations", DEFAULT_REGISTRATIONS);
+    return allRegs.filter(item => 
+      item.leadRollNo.trim().toLowerCase() === searchVal ||
+      item.leadRollNo.trim().toUpperCase() === queryValue.trim().toUpperCase() ||
+      item.leadEmail.trim().toLowerCase() === searchVal
+    ).map(reg => {
+      const tCode = reg.trackingCode && reg.trackingCode !== "undefined" ? reg.trackingCode : reg.id;
+      return { ...reg, trackingCode: tCode };
+    });
   },
 
   async updateRegistrationStatus(
@@ -1335,10 +1475,64 @@ export const dbService = {
     throw new Error("Registration not found");
   },
 
+  // FAQs Database Operations
+  async getFAQs(): Promise<FAQItem[]> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const snapshot = await getDocs(collection(db, "faqs"));
+        return snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as FAQItem))
+          .sort((a, b) => a.order - b.order);
+      } catch (err) {
+        console.error("Firestore getFAQs failed, reading local storage:", err);
+      }
+    }
+    const local = getLocal<FAQItem>("faqs", DEFAULT_FAQS);
+    return local.sort((a, b) => a.order - b.order);
+  },
+
+  async saveFAQ(item: Omit<FAQItem, "id" | "updatedAt"> & { id?: string }): Promise<FAQItem> {
+    const timestamp = new Date().toISOString();
+    const id = item.id || `faq_${Date.now()}`;
+    const fullItem: FAQItem = { ...item, id, updatedAt: timestamp };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await setDoc(doc(db, "faqs", id), fullItem);
+        return fullItem;
+      } catch (err) {
+        console.error("Firestore saveFAQ failed, writing to local storage:", err);
+      }
+    }
+
+    const local = getLocal<FAQItem>("faqs", DEFAULT_FAQS);
+    const existingIndex = local.findIndex(f => f.id === id);
+    if (existingIndex > -1) {
+      local[existingIndex] = fullItem;
+    } else {
+      local.push(fullItem);
+    }
+    setLocal("faqs", local);
+    return fullItem;
+  },
+
+  async deleteFAQ(id: string): Promise<void> {
+    if (isFirebaseConfigured && db) {
+      try {
+        await deleteDoc(doc(db, "faqs", id));
+        return;
+      } catch (err) {
+        console.error("Firestore deleteFAQ failed, deleting from local storage:", err);
+      }
+    }
+    const local = getLocal<FAQItem>("faqs", DEFAULT_FAQS);
+    setLocal("faqs", local.filter(f => f.id !== id));
+  },
+
   // Called by admin to verify or reject a submitted payment
   async updatePaymentStatus(
     registrationId: string,
-    paymentStatus: 'payment_verified' | 'payment_rejected',
+    paymentStatus: 'payment_verified' | 'payment_rejected' | 'ims_student' | 'pending_payment',
     paymentRemarks: string = "",
     verifiedBy: string = ""
   ): Promise<Registration> {
@@ -1371,6 +1565,185 @@ export const dbService = {
       return local[idx];
     }
     throw new Error("Registration not found");
+  },
+
+  async logActivity(
+    entry: Omit<ActivityLogEntry, "id" | "timestamp"> & { timestamp?: string }
+  ): Promise<ActivityLogEntry> {
+    const full: ActivityLogEntry = {
+      ...entry,
+      id: `log_${generateUUID()}`,
+      timestamp: entry.timestamp || new Date().toISOString(),
+    };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await addDoc(collection(db, "activity_logs"), full);
+        return full;
+      } catch (err) {
+        console.error("Firestore logActivity failed, writing to local storage:", err);
+      }
+    }
+
+    const local = getLocal<ActivityLogEntry>("activity_logs", []);
+    local.unshift(full);
+    if (local.length > 500) local.length = 500;
+    setLocal("activity_logs", local);
+    return full;
+  },
+
+  async getActivityLogs(limit = 200): Promise<ActivityLogEntry[]> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const q = query(collection(db, "activity_logs"), orderBy("timestamp", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.slice(0, limit).map((d) => ({ id: d.id, ...d.data() } as ActivityLogEntry));
+      } catch (err) {
+        console.error("Firestore getActivityLogs failed, reading local storage:", err);
+      }
+    }
+    return getLocal<ActivityLogEntry>("activity_logs", []).slice(0, limit);
+  },
+
+  async getRevenueAnalytics(): Promise<RevenueAnalytics> {
+    const [config, events, registrations] = await Promise.all([
+      this.getPaymentConfig(),
+      this.getEvents(),
+      this.getRegistrations(),
+    ]);
+
+    const fee = config.registrationFee || 0;
+    const verified = registrations.filter((r) => r.paymentStatus === "payment_verified");
+    const submitted = registrations.filter((r) => r.paymentStatus === "payment_submitted");
+    const rejected = registrations.filter((r) => r.paymentStatus === "payment_rejected");
+
+    const byEvent = events.map((ev) => {
+      const evVerified = verified.filter((r) => r.eventId === ev.id);
+      return {
+        eventId: ev.id,
+        eventTitle: ev.title,
+        sportType: ev.type,
+        verifiedCount: evVerified.length,
+        estimatedRevenue: evVerified.length * fee,
+      };
+    });
+
+    const bySportType = {
+      individual: verified.filter((r) => r.sportType === "individual").length * fee,
+      team: verified.filter((r) => r.sportType === "team").length * fee,
+    };
+
+    return {
+      registrationFee: fee,
+      paymentEnabled: config.enabled,
+      totalCollectedEstimate: verified.length * fee,
+      verifiedPaymentsCount: verified.length,
+      submittedPendingCount: submitted.length,
+      rejectedPaymentsCount: rejected.length,
+      byEvent: byEvent.sort((a, b) => b.estimatedRevenue - a.estimatedRevenue),
+      bySportType,
+      updatedAt: new Date().toISOString(),
+    };
+  },
+
+  async exportFullBackup(): Promise<Record<string, unknown>> {
+    const [
+      events,
+      registrations,
+      users,
+      gallery,
+      announcements,
+      contacts,
+      rules,
+      schedules,
+      faqs,
+      activityLogs,
+      paymentConfig,
+      about,
+      homepage,
+    ] = await Promise.all([
+      this.getEvents(),
+      this.getRegistrations(),
+      this.getUsers(),
+      this.getGallery(),
+      this.getAnnouncements(),
+      this.getContacts(),
+      this.getGeneralRules(),
+      this.getSchedules(),
+      this.getFAQs(),
+      this.getActivityLogs(1000),
+      this.getPaymentConfig(),
+      this.getAboutData(),
+      this.getHomepageSettings(),
+    ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      schema: "chakravyuh_2k26_backup_v1",
+      events,
+      registrations,
+      users,
+      gallery,
+      announcements,
+      contacts,
+      rules,
+      schedules,
+      faqs,
+      activityLogs,
+      paymentConfig,
+      about,
+      homepage,
+    };
+  },
+
+  /**
+   * Archives current operational data then clears registrations, schedules, announcements, gallery, and activity logs.
+   * Events, users, payment config, and static content are preserved.
+   */
+  async archiveSeasonAndReset(actorSummary: string): Promise<{ archiveKey: string }> {
+    const backup = await this.exportFullBackup();
+    const archiveKey = `chakravyuh_season_archive_${Date.now()}`;
+    localStorage.setItem(archiveKey, JSON.stringify(backup));
+
+    const emptyRegs: Registration[] = [];
+    setLocal("registrations", emptyRegs);
+    setLocal("schedules", []);
+    setLocal("notifications", []);
+    setLocal("gallery", []);
+    setLocal("activity_logs", []);
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await setDoc(doc(db, "season_archives", archiveKey), backup);
+        const collectionsToClear = ["registrations", "schedules", "notifications", "gallery", "activity_logs"];
+        for (const collName of collectionsToClear) {
+          const snap = await getDocs(collection(db, collName));
+          const batch = writeBatch(db);
+          snap.docs.forEach((d) => batch.delete(d.ref));
+          if (snap.docs.length > 0) await batch.commit();
+        }
+        await setDoc(doc(db, "settings", "last_season_reset"), {
+          at: new Date().toISOString(),
+          archiveKey,
+          actorSummary,
+        });
+      } catch (err) {
+        console.error("Firestore archiveSeasonAndReset partial failure:", err);
+        throw err;
+      }
+    }
+
+    await this.logActivity({
+      actorUid: "system",
+      actorName: actorSummary,
+      actorRole: "super_admin",
+      action: "season_archived",
+      targetType: "season",
+      summary: `Season archived to ${archiveKey} and operational collections cleared`,
+      metadata: { archiveKey },
+    });
+
+    return { archiveKey };
   },
 };
 

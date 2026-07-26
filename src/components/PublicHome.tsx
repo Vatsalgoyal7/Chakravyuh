@@ -20,6 +20,7 @@ import { SportEvent, Announcement, ScheduleItem } from "../types";
 interface PublicHomeProps {
   onExploreEvents: () => void;
   onRegisterNow: () => void;
+  onTrackStatus?: (recover?: boolean) => void;
 }
 
 // Static particle config — generated once, never re-randomized
@@ -32,7 +33,7 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
   opacity: 0.15 + (i % 4) * 0.08,
 }));
 
-export default function PublicHome({ onExploreEvents, onRegisterNow }: PublicHomeProps) {
+export default function PublicHome({ onExploreEvents, onRegisterNow, onTrackStatus }: PublicHomeProps) {
   const [events, setEvents] = useState<SportEvent[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
@@ -199,7 +200,7 @@ export default function PublicHome({ onExploreEvents, onRegisterNow }: PublicHom
                 transition={{ duration: 0.8, delay: 0.3 }}
                 className="max-w-xl mx-auto lg:mx-0 text-sm text-gray-400 font-sans tracking-wide leading-relaxed"
               >
-                Chakravyuh is the ultimate inter-college sporting arena. Break barriers, showcase true grit, and seal your legacy on the battlefields of IMSEC Engineering College.
+                Chakravyuh is the ultimate inter-college sporting arena. Break barriers, showcase true grit, and seal your legacy on the battlefields of IMS Engineering College.
               </motion.p>
 
               {/* Logistics */}
@@ -240,6 +241,21 @@ export default function PublicHome({ onExploreEvents, onRegisterNow }: PublicHom
                 >
                   <span>Explore Sports</span>
                   <ChevronRight className="w-4 h-4" style={{ color: "var(--theme-accent)" }} />
+                </button>
+              </motion.div>
+
+              {/* Forgot Code Shortcut Link */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
+                className="pt-2 text-center lg:text-left"
+              >
+                <button
+                  onClick={() => onTrackStatus?.(true)}
+                  className="text-xs font-mono text-gray-500 hover:text-orange-400 transition-all cursor-pointer underline underline-offset-4"
+                >
+                  Forgot your tracking code? Find it here
                 </button>
               </motion.div>
             </div>

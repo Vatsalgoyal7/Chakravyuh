@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
-import { SportEvent, Registration, ScheduleItem, Announcement } from "../types";
+import { SportEvent, Registration, ScheduleItem, Announcement, AdminUser } from "../types";
+import {
+  filterEventsByUserScope,
+  getRegistrationEventFilter,
+} from "../lib/permissions";
 import { 
   Users, 
   Trophy, 
@@ -14,9 +18,9 @@ import {
 } from "lucide-react";
 
 interface DashboardOverviewProps {
-  user: any;
+  user: AdminUser;
   onNavigate: (tabId: string) => void;
-  onUpdateUser?: (updatedUser: any) => Promise<void> | void;
+  onUpdateUser?: (updatedUser: AdminUser) => Promise<void> | void;
 }
 
 export default function DashboardOverview({ user, onNavigate, onUpdateUser }: DashboardOverviewProps) {
@@ -54,20 +58,19 @@ export default function DashboardOverview({ user, onNavigate, onUpdateUser }: Da
       setIsLoading(true);
       try {
         const evs = await dbService.getEvents();
-        const authorizedEventIds = user.role === "coordinator" ? user.assignedSports : undefined;
+        const scopedEvents = filterEventsByUserScope(user, evs);
+        const authorizedEventIds = getRegistrationEventFilter(user, evs);
         const [regs, scheds, announs] = await Promise.all([
           dbService.getRegistrations(authorizedEventIds),
           dbService.getSchedules(),
           dbService.getAnnouncements()
         ]);
-        
-        // If coordinator, filter data to their assigned sports
-        if (user.role === "coordinator") {
-          const authorizedEvents = evs.filter(e => user.assignedSports.includes(e.id));
-          const authEventIds = authorizedEvents.map(e => e.id);
-          setEvents(authorizedEvents);
-          setRegistrations(regs.filter(r => authEventIds.includes(r.eventId)));
-          setSchedules(scheds.filter(s => s.title.toLowerCase().includes("cricket") || s.title.toLowerCase().includes("tt"))); // rough filter
+
+        if (user.role === "coordinator" || user.role === "admin") {
+          const authEventIds = scopedEvents.map((e) => e.id);
+          setEvents(scopedEvents);
+          setRegistrations(regs.filter((r) => authEventIds.includes(r.eventId)));
+          setSchedules(user.role === "coordinator" ? scheds : scheds);
         } else {
           setEvents(evs);
           setRegistrations(regs);
@@ -166,10 +169,11 @@ export default function DashboardOverview({ user, onNavigate, onUpdateUser }: Da
             )}
           </div>
           <p className="text-xs text-gray-400 mt-1">
-            {user.role === "super_admin" 
+            {user.role === "super_admin"
               ? "You have complete administrative superuser privileges over events, coordinators, and registrations."
-              : "You are logged in as Coordinator. Your access is locked to authorized event metrics."
-            }
+              : user.role === "admin"
+              ? "Middle-tier admin — manage coordinators, registrations, schedules, and content within your assigned sport scope."
+              : "You are logged in as Coordinator. Your access is locked to authorized event metrics."}
           </p>
         </div>
         <div className="flex items-center gap-3">

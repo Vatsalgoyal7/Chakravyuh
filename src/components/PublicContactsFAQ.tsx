@@ -35,7 +35,7 @@ export default function PublicContactsFAQ() {
     },
     {
       q: "Are there any registration fees or entry charges?",
-      a: "No, registration for all sporting disciplines under Chakravyuh 2K26 is completely free of charge. IMSEC Engineering College fully sponsors the event to foster sportsmanship across campuses.",
+      a: "No, registration for all sporting disciplines under Chakravyuh 2K26 is completely free of charge. IMS Engineering College fully sponsors the event to foster sportsmanship across campuses.",
     },
     {
       q: "Can a student register for multiple sports events?",

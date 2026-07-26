@@ -136,7 +136,7 @@ export default function PublicFooter({ setActiveTab }: PublicFooterProps) {
 
         {/* Copyright */}
         <p>
-          © 2026 IMSEC Engineering College, Ghaziabad. All rights reserved.
+          © 2026 IMS Engineering College, Ghaziabad. All rights reserved.
         </p>
 
         {/* Personal Branding */}

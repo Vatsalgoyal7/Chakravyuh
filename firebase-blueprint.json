@@ -85,7 +85,7 @@
           "leadName": "Rajesh Kumar",
           "leadEmail": "rajesh.kumar@gmail.com",
           "leadPhone": "9898989898",
-          "leadCollege": "IMSEC Engineering College",
+          "leadCollege": "IMS Engineering College",
           "leadRollNo": "2301430100055",
           "leadBranch": "CSE",
           "leadYear": "3rd Year",
@@ -96,7 +96,7 @@
               "email": "suresh@gmail.com",
               "phone": "9123456789",
               "rollNo": "2301430100060",
-              "college": "IMSEC Engineering College"
+              "college": "IMS Engineering College"
             }
           ],
           "duplicateCheckHash": "cricket_2026_2301430100055",

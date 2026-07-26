@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import PublicWebsite from "./components/PublicWebsite";
 import { AdminUser } from "./types";
+import { mapFirestoreUserProfile, canAccessTab } from "./lib/permissions";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "./lib/firebase";
@@ -18,6 +19,11 @@ const RulesContactsManagement = lazy(() => import("./components/RulesContactsMan
 const AboutManagement = lazy(() => import("./components/AboutManagement"));
 const CoordinatorsManagement = lazy(() => import("./components/CoordinatorsManagement"));
 const PaymentSettings = lazy(() => import("./components/PaymentSettings"));
+const FAQManagement = lazy(() => import("./components/FAQManagement"));
+const AdminsManagement = lazy(() => import("./components/AdminsManagement"));
+const RevenueDashboard = lazy(() => import("./components/RevenueDashboard"));
+const ActivityLogsManagement = lazy(() => import("./components/ActivityLogsManagement"));
+const BackupResetManagement = lazy(() => import("./components/BackupResetManagement"));
 
 function RouteLoading() {
   return (
@@ -68,14 +74,12 @@ export default function App() {
 
           if (docSnap.exists()) {
             const data = docSnap.data();
-            adminUser = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              displayName: firebaseUser.displayName || data.displayName || "Admin User",
-              role: data.role === "super_admin" ? "super_admin" : data.role === "coordinator" ? "coordinator" : "pending",
-              assignedSports: Array.isArray(data.assignedSports) ? data.assignedSports : [],
-              createdAt: data.createdAt || new Date().toISOString(),
-            };
+            adminUser = mapFirestoreUserProfile(
+              firebaseUser.uid,
+              firebaseUser.email || "",
+              firebaseUser.displayName || "",
+              data as Record<string, unknown>
+            );
           } else {
             // Check pre-provisioning by email
             const usersColl = collection(db, "users");
@@ -85,14 +89,12 @@ export default function App() {
             if (!querySnap.empty) {
               const preProvDoc = querySnap.docs[0];
               const preProvData = preProvDoc.data();
-              adminUser = {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email || "",
-                displayName: preProvData.displayName || firebaseUser.displayName || "Admin User",
-                role: preProvData.role === "super_admin" ? "super_admin" : preProvData.role === "coordinator" ? "coordinator" : "pending",
-                assignedSports: Array.isArray(preProvData.assignedSports) ? preProvData.assignedSports : [],
-                createdAt: preProvData.createdAt || new Date().toISOString(),
-              };
+              adminUser = mapFirestoreUserProfile(
+                firebaseUser.uid,
+                firebaseUser.email || "",
+                preProvData.displayName || firebaseUser.displayName || "",
+                preProvData as Record<string, unknown>
+              );
               // Write new UID-keyed document
               await setDoc(doc(db, "users", firebaseUser.uid), adminUser);
               // Clean up email-keyed document if different
@@ -131,6 +133,15 @@ export default function App() {
                 return;
               }
             }
+          }
+
+          if (adminUser.suspended) {
+            await signOut(auth);
+            setUser(null);
+            localStorage.removeItem("chakravyuh_admin_session");
+            setAuthError("Your account has been suspended. Contact the Super Admin.");
+            setIsInitializing(false);
+            return;
           }
 
           if (adminUser.role === "pending") {
@@ -216,29 +227,46 @@ export default function App() {
       case "dashboard":
         return <DashboardOverview user={user!} onNavigate={(tabId) => setActiveTab(tabId)} onUpdateUser={handleUpdateUser} />;
       case "events":
-        if (user!.role !== "super_admin") return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        if (!canAccessTab(user!, "events")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
         return <EventsManagement />;
       case "coordinators":
-        if (user!.role !== "super_admin") return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
-        return <CoordinatorsManagement />;
+        if (!canAccessTab(user!, "coordinators")) return <div className="text-xs text-red-500 font-mono">Access Locked.</div>;
+        return <CoordinatorsManagement currentUser={user!} />;
+      case "admins":
+        if (!canAccessTab(user!, "admins")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        return <AdminsManagement actor={user!} />;
       case "registrations":
         return <RegistrationsManagement user={user!} />;
       case "schedules":
-        return <SchedulesManagement />;
+        if (!canAccessTab(user!, "schedules")) return <div className="text-xs text-red-500 font-mono">Access Locked.</div>;
+        return <SchedulesManagement user={user!} />;
       case "notifications":
+        if (!canAccessTab(user!, "notifications")) return <div className="text-xs text-red-500 font-mono">Access Locked.</div>;
         return <NotificationsManagement />;
       case "gallery":
-        if (user!.role !== "super_admin") return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        if (!canAccessTab(user!, "gallery")) return <div className="text-xs text-red-500 font-mono">Access Locked.</div>;
         return <GalleryManagement />;
       case "rules_contacts":
-        if (user!.role !== "super_admin") return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        if (!canAccessTab(user!, "rules_contacts")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
         return <RulesContactsManagement />;
       case "about":
-        if (user!.role !== "super_admin") return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        if (!canAccessTab(user!, "about")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
         return <AboutManagement />;
       case "payment_settings":
-        if (user!.role !== "super_admin") return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        if (!canAccessTab(user!, "payment_settings")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
         return <PaymentSettings />;
+      case "faq_management":
+        if (!canAccessTab(user!, "faq_management")) return <div className="text-xs text-red-500 font-mono">Access Locked.</div>;
+        return <FAQManagement />;
+      case "revenue":
+        if (!canAccessTab(user!, "revenue")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        return <RevenueDashboard />;
+      case "activity_logs":
+        if (!canAccessTab(user!, "activity_logs")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        return <ActivityLogsManagement />;
+      case "backup_reset":
+        if (!canAccessTab(user!, "backup_reset")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        return <BackupResetManagement actor={user!} />;
       default:
         return <DashboardOverview user={user!} onNavigate={(tabId) => setActiveTab(tabId)} onUpdateUser={handleUpdateUser} />;
     }

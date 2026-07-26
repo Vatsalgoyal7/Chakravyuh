@@ -1,4 +1,7 @@
-export type UserRole = 'super_admin' | 'coordinator' | 'pending';
+export type UserRole = 'super_admin' | 'admin' | 'coordinator' | 'pending';
+
+/** Scope for middle-tier admins; optional on existing profiles (defaults to all). */
+export type AdminScope = 'individual' | 'team' | 'all';
 
 export interface AdminUser {
   uid: string;
@@ -7,6 +10,50 @@ export interface AdminUser {
   role: UserRole;
   assignedSports: string[]; // Event IDs they are authorized to manage
   createdAt: string;
+  /** Middle-tier admin only; omitted on legacy users → treated as "all". */
+  scope?: AdminScope;
+  /** When true, login is blocked until cleared by Super Admin. */
+  suspended?: boolean;
+}
+
+export type ActivityAction =
+  | 'registration_status_changed'
+  | 'registration_deleted'
+  | 'payment_verified'
+  | 'schedule_updated'
+  | 'schedule_deleted'
+  | 'announcement_created'
+  | 'announcement_deleted'
+  | 'user_created'
+  | 'user_updated'
+  | 'user_suspended'
+  | 'user_deleted'
+  | 'backup_exported'
+  | 'season_archived';
+
+export interface ActivityLogEntry {
+  id: string;
+  actorUid: string;
+  actorName: string;
+  actorRole: UserRole;
+  action: ActivityAction;
+  targetType: string;
+  targetId?: string;
+  summary: string;
+  metadata?: Record<string, string>;
+  timestamp: string;
+}
+
+export interface RevenueAnalytics {
+  registrationFee: number;
+  paymentEnabled: boolean;
+  totalCollectedEstimate: number;
+  verifiedPaymentsCount: number;
+  submittedPendingCount: number;
+  rejectedPaymentsCount: number;
+  byEvent: { eventId: string; eventTitle: string; sportType: 'individual' | 'team'; verifiedCount: number; estimatedRevenue: number }[];
+  bySportType: { individual: number; team: number };
+  updatedAt: string;
 }
 
 export interface SportCoordinator {
@@ -68,7 +115,7 @@ export interface Registration {
   isOutstation?: boolean;
   travelMode?: string; // e.g. "By Train", "By Bus", "By Car/Bike", "By Flight", "Other"
   // Payment fields
-  paymentStatus?: 'pending_payment' | 'payment_submitted' | 'payment_verified' | 'payment_rejected';
+  paymentStatus?: 'pending_payment' | 'payment_submitted' | 'payment_verified' | 'payment_rejected' | 'ims_student';
   utrNumber?: string;        // Transaction ID / UTR submitted by user
   paymentSubmittedAt?: string;
   paymentVerifiedAt?: string;
@@ -95,6 +142,14 @@ export interface PaymentConfig {
   registrationFee: number;   // Amount in INR
   payeeName: string;         // Name shown on QR screen
   instructions: string;      // Custom instructions for students
+  updatedAt: string;
+}
+
+export interface FAQItem {
+  id: string;
+  q: string;
+  a: string;
+  order: number;
   updatedAt: string;
 }
 

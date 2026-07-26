@@ -36,6 +36,12 @@ function PublicPortalContent() {
           <PublicHome
             onExploreEvents={() => setActiveTab("events")}
             onRegisterNow={() => setActiveTab("registration")}
+            onTrackStatus={(recover = false) => {
+              setActiveTab("track");
+              if (recover) {
+                sessionStorage.setItem("chakravyuh_auto_show_recover", "true");
+              }
+            }}
           />
         );
 
@@ -74,6 +80,12 @@ function PublicPortalContent() {
           <PublicHome
             onExploreEvents={() => setActiveTab("events")}
             onRegisterNow={() => setActiveTab("registration")}
+            onTrackStatus={(recover = false) => {
+              setActiveTab("track");
+              if (recover) {
+                sessionStorage.setItem("chakravyuh_auto_show_recover", "true");
+              }
+            }}
           />
         );
     }

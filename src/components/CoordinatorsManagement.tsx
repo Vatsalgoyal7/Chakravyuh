@@ -18,7 +18,11 @@ import {
   Key
 } from "lucide-react";
 
-export default function CoordinatorsManagement() {
+interface CoordinatorsManagementProps {
+  currentUser: AdminUser;
+}
+
+export default function CoordinatorsManagement({ currentUser }: CoordinatorsManagementProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [events, setEvents] = useState<SportEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,13 +32,15 @@ export default function CoordinatorsManagement() {
   // Invite Form state
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<'super_admin' | 'coordinator'>("coordinator");
+  const [inviteRole, setInviteRole] = useState<'super_admin' | 'admin' | 'coordinator'>("coordinator");
   const [inviteSports, setInviteSports] = useState<string[]>([]);
+  const [inviteScope, setInviteScope] = useState<'all' | 'individual' | 'team'>("all");
 
   // Edit Form state
   const [editName, setEditName] = useState("");
-  const [editRole, setEditRole] = useState<'super_admin' | 'coordinator' | 'pending'>("coordinator");
+  const [editRole, setEditRole] = useState<'super_admin' | 'admin' | 'coordinator' | 'pending'>("coordinator");
   const [editSports, setEditSports] = useState<string[]>([]);
+  const [editScope, setEditScope] = useState<'all' | 'individual' | 'team'>("all");
 
   useEffect(() => {
     loadData();
@@ -79,7 +85,8 @@ export default function CoordinatorsManagement() {
       displayName: inviteName.trim(),
       role: inviteRole,
       assignedSports: inviteRole === "coordinator" ? inviteSports : [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      ...(inviteRole === "admin" ? { scope: inviteScope } : {})
     };
 
     try {
@@ -88,6 +95,7 @@ export default function CoordinatorsManagement() {
       setInviteEmail("");
       setInviteRole("coordinator");
       setInviteSports([]);
+      setInviteScope("all");
       setShowInviteForm(false);
       loadData();
     } catch (err) {
@@ -99,8 +107,9 @@ export default function CoordinatorsManagement() {
   const handleEditClick = (user: AdminUser) => {
     setEditingUser(user);
     setEditName(user.displayName);
-    setEditRole(user.role);
+    setEditRole(user.role as any);
     setEditSports(user.assignedSports || []);
+    setEditScope(user.scope ?? "all");
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -115,7 +124,8 @@ export default function CoordinatorsManagement() {
       ...editingUser,
       displayName: editName.trim(),
       role: editRole as any,
-      assignedSports: editRole === "coordinator" ? editSports : []
+      assignedSports: editRole === "coordinator" ? editSports : [],
+      ...(editRole === "admin" ? { scope: editScope } : {})
     };
 
     try {
@@ -140,7 +150,7 @@ export default function CoordinatorsManagement() {
     }
   };
 
-  const handleApprovePending = async (user: AdminUser, role: 'super_admin' | 'coordinator') => {
+  const handleApprovePending = async (user: AdminUser, role: 'super_admin' | 'admin' | 'coordinator') => {
     const updatedUser: AdminUser = {
       ...user,
       role: role,
@@ -252,11 +262,27 @@ export default function CoordinatorsManagement() {
                   onChange={(e) => setInviteRole(e.target.value as any)}
                 >
                   <option value="coordinator">Coordinator</option>
+                  <option value="admin">Admin (Mid-tier)</option>
                   <option value="super_admin">Super Admin</option>
                 </select>
               </div>
             </div>
 
+            {inviteRole === "admin" && (
+              <div className="space-y-2 pt-2">
+                <label className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Admin Scope</label>
+                <select
+                  className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
+                  value={inviteScope}
+                  onChange={(e) => setInviteScope(e.target.value as any)}
+                >
+                  <option value="all">All Events (General Admin)</option>
+                  <option value="individual">Individual Events only</option>
+                  <option value="team">Team Events only</option>
+                </select>
+                <p className="text-[10px] text-gray-600">Scope determines which events this admin can manage.</p>
+              </div>
+            )}
             {inviteRole === "coordinator" && (
               <div className="space-y-3 pt-2">
                 <label className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">
@@ -339,10 +365,31 @@ export default function CoordinatorsManagement() {
                 >
                   <option value="pending">Pending Registration</option>
                   <option value="coordinator">Coordinator</option>
-                  <option value="super_admin">Super Admin</option>
+                  {/* Admin and Super Admin options — super_admin only */}
+                  {currentUser.role === 'super_admin' && (
+                    <>
+                      <option value="admin">Admin (Mid-tier)</option>
+                      <option value="super_admin">Super Admin</option>
+                    </>
+                  )}
                 </select>
               </div>
 
+              {editRole === "admin" && (
+                <div className="space-y-2 pt-2">
+                  <label className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Admin Scope</label>
+                  <select
+                    className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
+                    value={editScope}
+                    onChange={(e) => setEditScope(e.target.value as any)}
+                  >
+                    <option value="all">All Events (General Admin)</option>
+                    <option value="individual">Individual Events only</option>
+                    <option value="team">Team Events only</option>
+                  </select>
+                  <p className="text-[10px] text-gray-600">Scope determines which events this admin can manage.</p>
+                </div>
+              )}
               {editRole === "coordinator" && (
                 <div className="space-y-3 pt-2">
                   <label className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">
@@ -410,19 +457,31 @@ export default function CoordinatorsManagement() {
                   <p className="text-[10px] text-gray-500 mt-0.5">{user.email}</p>
                   <p className="text-[9px] text-gray-600 font-mono mt-1">UID: {user.uid}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* All roles: Approve as Coordinator */}
                   <button
                     onClick={() => handleApprovePending(user, 'coordinator')}
                     className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-black font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
                   >
                     Approve as Coordinator
                   </button>
-                  <button
-                    onClick={() => handleApprovePending(user, 'super_admin')}
-                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
-                  >
-                    Approve as Super Admin
-                  </button>
+                  {/* Super Admin only: Approve as Admin or Super Admin */}
+                  {currentUser.role === 'super_admin' && (
+                    <>
+                      <button
+                        onClick={() => handleApprovePending(user, 'admin')}
+                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
+                      >
+                        Approve as Admin
+                      </button>
+                      <button
+                        onClick={() => handleApprovePending(user, 'super_admin')}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
+                      >
+                        Approve as Super Admin
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => handleDeleteClick(user.uid, user.displayName)}
                     className="p-2 hover:bg-red-500/10 text-gray-500 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20 cursor-pointer"
@@ -476,15 +535,21 @@ export default function CoordinatorsManagement() {
                     <td className="py-4 px-4 font-mono">
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${
                         user.role === 'super_admin' 
-                          ? "bg-red-500/10 border-red-500/20 text-red-400" 
+                          ? "bg-red-500/10 border-red-500/20 text-red-400"
+                          : user.role === 'admin'
+                          ? "bg-violet-500/10 border-violet-500/20 text-violet-400"
                           : "bg-amber-500/10 border-amber-500/20 text-amber-400"
                       }`}>
-                        {user.role === 'super_admin' ? 'SUPER ADMIN' : 'COORDINATOR'}
+                        {user.role === 'super_admin' ? 'SUPER ADMIN' : user.role === 'admin' ? `ADMIN · ${(user.scope ?? 'all').toUpperCase()}` : 'COORDINATOR'}
                       </span>
                     </td>
                     <td className="py-4 px-4">
                       {user.role === 'super_admin' ? (
                         <span className="text-[10px] text-gray-500 italic font-mono">All Access (Super Admin)</span>
+                      ) : user.role === 'admin' ? (
+                        <span className="text-[10px] text-violet-400/70 font-mono italic">
+                          Scope: {user.scope === 'individual' ? 'Individual Events' : user.scope === 'team' ? 'Team Events' : 'All Events'}
+                        </span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {(!user.assignedSports || user.assignedSports.length === 0) ? (
@@ -504,20 +569,28 @@ export default function CoordinatorsManagement() {
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleEditClick(user)}
-                          className="p-2 hover:bg-orange-500/10 text-gray-500 hover:text-orange-400 rounded-lg transition-all border border-transparent hover:border-orange-500/20 cursor-pointer"
-                          title="Edit User"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(user.uid, user.displayName)}
-                          className="p-2 hover:bg-red-500/10 text-gray-500 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20 cursor-pointer"
-                          title="Delete User"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {/* Admin can only edit/delete coordinators, not super_admin or other admins */}
+                        {(currentUser.role === 'super_admin' || user.role === 'coordinator') && (
+                          <button
+                            onClick={() => handleEditClick(user)}
+                            className="p-2 hover:bg-orange-500/10 text-gray-500 hover:text-orange-400 rounded-lg transition-all border border-transparent hover:border-orange-500/20 cursor-pointer"
+                            title="Edit User"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {(currentUser.role === 'super_admin' || user.role === 'coordinator') && (
+                          <button
+                            onClick={() => handleDeleteClick(user.uid, user.displayName)}
+                            className="p-2 hover:bg-red-500/10 text-gray-500 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20 cursor-pointer"
+                            title="Delete User"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {currentUser.role !== 'super_admin' && user.role !== 'coordinator' && (
+                          <span className="text-[9px] text-gray-600 font-mono italic">Super Admin only</span>
+                        )}
                       </div>
                     </td>
                   </tr>

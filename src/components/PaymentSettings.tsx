@@ -217,7 +217,11 @@ export default function PaymentSettings() {
                   setUploading(true);
                   setUploadProgress(0);
 
-                  if (isFirebaseConfigured && storage) {
+                  const isLocal = window.location.hostname === "localhost" || 
+                                  window.location.hostname === "127.0.0.1" || 
+                                  /^(\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname);
+
+                  if (isFirebaseConfigured && storage && !isLocal) {
                     // Firebase Storage upload
                     try {
                       const storageRef = ref(storage, `payment_qr/qr_${Date.now()}_${file.name}`);
@@ -225,7 +229,17 @@ export default function PaymentSettings() {
                       task.on(
                         "state_changed",
                         (snap) => setUploadProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)),
-                        (err) => { setUploadError(err.message); setUploading(false); },
+                        (err) => { 
+                          console.warn("Firebase upload failed, falling back to local base64:", err);
+                          // Fallback to FileReader on error
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setConfig((c) => ({ ...c, qrImageUrl: ev.target?.result as string }));
+                            setUploading(false);
+                            setUploadProgress(100);
+                          };
+                          reader.readAsDataURL(file);
+                        },
                         async () => {
                           const url = await getDownloadURL(task.snapshot.ref);
                           setConfig((c) => ({ ...c, qrImageUrl: url }));
@@ -234,11 +248,17 @@ export default function PaymentSettings() {
                         }
                       );
                     } catch (err: any) {
-                      setUploadError(err.message || "Upload failed");
-                      setUploading(false);
+                      console.warn("Firebase upload failed, falling back to local base64:", err);
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setConfig((c) => ({ ...c, qrImageUrl: ev.target?.result as string }));
+                        setUploading(false);
+                        setUploadProgress(100);
+                      };
+                      reader.readAsDataURL(file);
                     }
                   } else {
-                    // Offline fallback: read as base64 data URL
+                    // Local/Offline Mode: read as base64 data URL
                     const reader = new FileReader();
                     reader.onload = (ev) => {
                       setConfig((c) => ({ ...c, qrImageUrl: ev.target?.result as string }));

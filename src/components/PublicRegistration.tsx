@@ -45,16 +45,25 @@ export default function PublicRegistration({
   
   // Wizard steps: 1 = Sport, 2 = Captain, 3 = Squad (if team), 4 = Logistics, 5 = Review
   const [currentStep, setCurrentStep] = useState(1);
+  const [isImsecStudent, setIsImsecStudent] = useState(true);
   
   // Form states
   const [leadName, setLeadName] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
-  const [leadCollege, setLeadCollege] = useState("IMSEC Engineering College");
+  const [leadCollege, setLeadCollege] = useState("IMS Engineering College");
   const [leadRollNo, setLeadRollNo] = useState("");
   const [leadBranch, setLeadBranch] = useState("");
   const [leadYear, setLeadYear] = useState("3rd Year");
   const [teamName, setTeamName] = useState("");
+  
+  useEffect(() => {
+    if (isImsecStudent) {
+      setLeadCollege("IMS Engineering College");
+    } else {
+      setLeadCollege("");
+    }
+  }, [isImsecStudent]);
   
   // Logistics states
   const [isOutstation, setIsOutstation] = useState(false);
@@ -117,7 +126,7 @@ export default function PublicRegistration({
         email: "",
         phone: "",
         rollNo: "",
-        college: leadCollege || "IMSEC Engineering College"
+        college: leadCollege || "IMS Engineering College"
       }));
       setMembers(initial);
     } else {
@@ -143,7 +152,7 @@ export default function PublicRegistration({
     }
     setMembers([
       ...members,
-      { name: "", email: "", phone: "", rollNo: "", college: leadCollege || "IMSEC Engineering College" }
+      { name: "", email: "", phone: "", rollNo: "", college: leadCollege || "IMS Engineering College" }
     ]);
     setErrorMsg("");
   };
@@ -185,10 +194,6 @@ export default function PublicRegistration({
     }
     if (step === 3) {
       if (selectedEvent?.type === "team") {
-        if (!teamName.trim()) {
-          setErrorMsg("Please declare a unique Team Name.");
-          return false;
-        }
         const totalRoster = members.length + 1;
         if (totalRoster < selectedEvent.minTeamSize) {
           setErrorMsg(`Roster size must be at least ${selectedEvent.minTeamSize} athletes. Currently it is ${totalRoster}.`);
@@ -265,16 +270,36 @@ export default function PublicRegistration({
       leadRollNo: leadRollNo.trim(),
       leadBranch: leadBranch.trim(),
       leadYear,
-      teamName: selectedEvent.type === "team" ? teamName.trim() : "",
+      teamName: teamName.trim(),
       members: selectedEvent.type === "team" ? members : [],
       duplicateCheckHash,
       isOutstation,
       travelMode: isOutstation ? travelMode : "",
-      remarks: ""
+      remarks: "",
+      paymentStatus: isImsecStudent ? ("ims_student" as const) : ("pending_payment" as const)
     };
 
     try {
       const response = await dbService.saveRegistration(regData);
+      
+      // Save details to localStorage for retrieval if student loses the tracking ID
+      try {
+        const stored = localStorage.getItem("chakravyuh_my_registrations");
+        const list = stored ? JSON.parse(stored) : [];
+        if (!list.some((item: any) => item.trackingCode === response.trackingCode)) {
+          list.push({
+            trackingCode: response.trackingCode,
+            eventTitle: response.eventTitle,
+            leadName: response.leadName,
+            registeredAt: response.registeredAt,
+            status: response.status
+          });
+          localStorage.setItem("chakravyuh_my_registrations", JSON.stringify(list));
+        }
+      } catch (localErr) {
+        console.error("LocalStorage save registration failed:", localErr);
+      }
+
       setSuccessData(response);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
@@ -459,8 +484,29 @@ export default function PublicRegistration({
               </div>
             </div>
 
-            {/* Payment Section — add-on, shown only if payment is enabled */}
-            {paymentConfig?.enabled && successData && !utrSubmitted && (
+            {/* Host Student ID verification notice (instead of payment) */}
+            {successData && successData.paymentStatus === "ims_student" && (
+              <div className={`rounded-3xl border p-6 space-y-4 font-mono text-xs animate-in fade-in duration-300 ${
+                isWhiteBg ? 'bg-purple-50/50 border-purple-200' : 'bg-purple-500/[0.03] border-purple-500/10'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">
+                    <School className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className={`font-black text-sm uppercase tracking-wider ${isWhiteBg ? 'text-gray-900' : 'text-purple-400'}`}>
+                      IMSEC Student ID Verification Required
+                    </p>
+                    <p className={`text-[11px] leading-relaxed ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
+                      Since you are a student of IMS Engineering College, online payment is bypassed. Your registration will be verified offline. Please bring your physical **College ID Card** on match day to confirm your spot.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Section — add-on, shown only if payment is enabled and not an internal IMSEC student */}
+            {paymentConfig?.enabled && successData && successData.paymentStatus !== "ims_student" && !utrSubmitted && (
               <div className={`rounded-3xl border p-6 space-y-5 font-mono text-xs animate-in fade-in duration-300 ${
                 isWhiteBg ? 'bg-white border-orange-200' : 'bg-[#12151a] border-orange-500/15'
               }`}>
@@ -748,6 +794,39 @@ export default function PublicRegistration({
                       </div>
                     </div>
 
+                    {/* Student Category Selector */}
+                    <div className="space-y-1.5">
+                      <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>Student Category</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsImsecStudent(true)}
+                          className={`py-3 rounded-2xl border text-center transition-all cursor-pointer font-bold ${
+                            isImsecStudent
+                              ? "text-orange-500 border-orange-500/50 bg-orange-500/5"
+                              : isWhiteBg
+                                ? "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                                : "bg-[#08090c] border-white/[0.06] text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          IMSEC Student
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsImsecStudent(false)}
+                          className={`py-3 rounded-2xl border text-center transition-all cursor-pointer font-bold ${
+                            !isImsecStudent
+                              ? "text-orange-500 border-orange-500/50 bg-orange-500/5"
+                              : isWhiteBg
+                                ? "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                                : "bg-[#08090c] border-white/[0.06] text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          Outsider / Other
+                        </button>
+                      </div>
+                    </div>
+
                     {/* College */}
                     <div className="space-y-1.5">
                       <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>College Name</label>
@@ -756,10 +835,15 @@ export default function PublicRegistration({
                         <input
                           type="text"
                           required
-                          placeholder="e.g. IMSEC Engineering College"
+                          disabled={isImsecStudent}
+                          placeholder="e.g. IMS Engineering College"
                           value={leadCollege}
                           onChange={(e) => setLeadCollege(e.target.value)}
-                          className={`w-full pl-10 pr-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none placeholder-gray-600 transition-all font-semibold ${isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'}`}
+                          className={`w-full pl-10 pr-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none placeholder-gray-600 transition-all font-semibold ${
+                            isImsecStudent
+                              ? isWhiteBg ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-[#0e1117] border-white/[0.03] text-gray-500'
+                              : isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
+                          }`}
                         />
                       </div>
                     </div>
@@ -790,6 +874,18 @@ export default function PublicRegistration({
                         </select>
                       </div>
                     </div>
+                    
+                    {/* Team Name (Optional) */}
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>Team / Roster Name (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. SQUAD ALPHA or club name"
+                        value={teamName}
+                        onChange={(e) => setTeamName(e.target.value)}
+                        className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none placeholder-gray-600 transition-all font-semibold ${isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'}`}
+                      />
+                    </div>
 
                   </div>
                 </div>
@@ -808,18 +904,6 @@ export default function PublicRegistration({
                     </span>
                   </div>
 
-                  {/* Team Name */}
-                  <div className="space-y-1.5">
-                    <label className="block text-gray-400 font-bold uppercase text-[10px]">Roster Team Name</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. SQUAD ALPHA"
-                      value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
-                      className="w-full px-4 py-3 bg-[#08090c] border border-white/[0.06] rounded-2xl focus:border-orange-500 focus:outline-none text-white placeholder-gray-600 uppercase transition-all font-black"
-                    />
-                  </div>
 
                   {/* Dynamically added players */}
                   <div className="space-y-4 pt-2 max-h-96 overflow-y-auto pr-1">

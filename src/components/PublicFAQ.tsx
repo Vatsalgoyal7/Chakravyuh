@@ -1,40 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HelpCircle, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
-
-interface FAQItem {
-  q: string;
-  a: string;
-}
+import { dbService } from "../lib/dbService";
+import { FAQItem } from "../types";
 
 export default function PublicFAQ() {
+  const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const faqs: FAQItem[] = [
-    {
-      q: "Who is eligible to participate in Chakravyuh 2K26?",
-      a: "All undergraduate and postgraduate students enrolled in recognized universities and AICTE/UGC approved engineering or management colleges are eligible. Bringing a physical college identity card with a current fee slip is absolutely mandatory during verification."
-    },
-    {
-      q: "Is there an entry or registration fee for the sports?",
-      a: "Yes, standard institutional registration fees apply for individual and team sports to cover logistics, referee charges, and event kit arrangements. Specific fee structures will be shared by the respective sports coordinators upon roster validation."
-    },
-    {
-      q: "Can a player register for multiple sports disciplines?",
-      a: "Yes, players may participate in multiple events as long as matches do not overlap. However, the organizing committee will not delay or reschedule any fixtures if an athlete has scheduling conflicts due to participating in multiple sports."
-    },
-    {
-      q: "How will match schedules and court brackets be published?",
-      a: "Fixture brackets, match day schedules, and ground layouts are published directly under the 'Schedule' page on this website. This list updates dynamically in real-time, displaying live indicators ('LIVE NOW' badges) for ongoing games."
-    },
-    {
-      q: "Is accommodation available for outstation teams?",
-      a: "Outstation teams can request campus hostel accommodation during registration. Please get in touch with the Physical Education Director or student coordinators directly via the 'Rules & Contacts' directory to pre-arrange lodging."
-    },
-    {
-      q: "What is the procedure if we need to modify our team squad roster?",
-      a: "Rosters cannot be edited online once submitted to prevent database fraud. If you need to make urgent player substitutions due to injuries, the Team Captain must contact the specific student coordinator with official approval from your college's sports department."
-    }
-  ];
+  useEffect(() => {
+    dbService.getFAQs()
+      .then(res => {
+        setFaqs(res);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setIsLoading(false);
+      });
+  }, []);
 
   const toggleFAQ = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -57,43 +41,54 @@ export default function PublicFAQ() {
           </p>
         </div>
 
-        {/* Collapsible Accordion Grid */}
-        <div className="space-y-4 font-mono text-xs">
-          {faqs.map((faq, idx) => {
-            const isOpen = openIndex === idx;
-            return (
-              <div 
-                key={idx}
-                className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 ${
-                  isOpen ? "border-orange-500/30 shadow-lg shadow-orange-500/[0.03]" : "border-white/[0.04]"
-                }`}
-              >
-                {/* Accordion Trigger */}
-                <button
-                  onClick={() => toggleFAQ(idx)}
-                  className="w-full text-left p-5 flex items-center justify-between gap-4 hover:text-orange-400 transition-all font-bold text-white uppercase text-[11px] leading-relaxed cursor-pointer outline-none"
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 font-mono text-xs text-gray-500">
+            <div className="w-8 h-8 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+            <p>Loading help documents...</p>
+          </div>
+        ) : faqs.length === 0 ? (
+          <div className="text-center py-16 glass-panel border border-white/[0.04] rounded-3xl font-mono text-xs text-gray-500">
+            No FAQs published yet. Please check back later.
+          </div>
+        ) : (
+          /* Collapsible Accordion Grid */
+          <div className="space-y-4 font-mono text-xs">
+            {faqs.map((faq, idx) => {
+              const isOpen = openIndex === idx;
+              return (
+                <div 
+                  key={faq.id || idx}
+                  className={`glass-panel rounded-3xl overflow-hidden transition-all duration-300 ${
+                    isOpen ? "border-orange-500/30 shadow-lg shadow-orange-500/[0.03]" : "border-white/[0.04]"
+                  }`}
                 >
-                  <span className="flex items-center gap-3">
-                    <HelpCircle className="w-4 h-4 text-orange-500 shrink-0" />
-                    <span>{faq.q}</span>
-                  </span>
-                  {isOpen ? (
-                    <ChevronUp className="w-4 h-4 shrink-0 transition-transform duration-300 rotate-180" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 shrink-0 transition-transform duration-300" />
-                  )}
-                </button>
+                  {/* Accordion Trigger */}
+                  <button
+                    onClick={() => toggleFAQ(idx)}
+                    className="w-full text-left p-5 flex items-center justify-between gap-4 hover:text-orange-400 transition-all font-bold text-white uppercase text-[11px] leading-relaxed cursor-pointer outline-none"
+                  >
+                    <span className="flex items-center gap-3">
+                      <HelpCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                      <span>{faq.q}</span>
+                    </span>
+                    {isOpen ? (
+                      <ChevronUp className="w-4 h-4 shrink-0 transition-transform duration-300 rotate-180" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 shrink-0 transition-transform duration-300" />
+                    )}
+                  </button>
 
-                {/* Accordion Content */}
-                {isOpen && (
-                  <div className="px-5 pb-5 pt-1.5 border-t border-white/[0.04] text-gray-400 leading-relaxed text-xs">
-                    {faq.a}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  {/* Accordion Content */}
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-1.5 border-t border-white/[0.04] text-gray-400 leading-relaxed text-xs">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Extra Support Ticker */}
         <div className="mt-12 p-6 glass-panel border border-white/[0.05] rounded-3xl text-center font-mono shadow-xl">

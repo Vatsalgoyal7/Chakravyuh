@@ -84,7 +84,7 @@ export default function PublicHero({ onRegisterClick, onExploreClick }: PublicHe
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-gray-400 font-sans max-w-xl mx-auto lg:mx-0 text-sm sm:text-base leading-relaxed"
             >
-              IMSEC Engineering College proudly presents the ultimate Inter-College Sports Festival. 
+              IMS Engineering College proudly presents the ultimate Inter-College Sports Festival. 
               Bring your champion squad, breach the rings of defense, and engrave your name 
               on the glorious halls of athletic eternity.
             </motion.p>
@@ -102,7 +102,7 @@ export default function PublicHero({ onRegisterClick, onExploreClick }: PublicHe
               </div>
               <div className="flex items-center gap-1.5 bg-[#0f1115] px-3.5 py-2 rounded-lg border border-white/5">
                 <MapPin className="w-4 h-4 text-orange-500" />
-                <span>IMSEC Engineering College, NH-24, Ghaziabad</span>
+                <span>IMS Engineering College, NH-24, Ghaziabad</span>
               </div>
             </motion.div>
 

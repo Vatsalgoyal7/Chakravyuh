@@ -16,10 +16,16 @@ import {
   Database,
   PhoneCall,
   Eye,
-  QrCode
+  QrCode,
+  UserCheck,
+  HelpCircle,
+  ScrollText,
+  IndianRupee,
+  Archive
 } from "lucide-react";
 import { AdminUser } from "../types";
 import { isFirebaseConfigured } from "../lib/firebase";
+import { canAccessTab, roleDisplayLabel, resolveAdminScope } from "../lib/permissions";
 
 interface AdminLayoutProps {
   user: AdminUser;
@@ -41,23 +47,33 @@ export default function AdminLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "coordinator"] },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "coordinator"] },
+    { id: "revenue", label: "Revenue Monitor", icon: IndianRupee, roles: ["super_admin"] },
     { id: "events", label: "Events Manager", icon: Trophy, roles: ["super_admin"] },
-    { id: "registrations", label: "Registrations Control", icon: Users, roles: ["super_admin", "coordinator"] },
-    { id: "schedules", label: "Match Schedules", icon: CalendarDays, roles: ["super_admin", "coordinator"] },
-    { id: "notifications", label: "Announcements", icon: Megaphone, roles: ["super_admin", "coordinator"] },
-    { id: "gallery", label: "Gallery Upload", icon: ImageIcon, roles: ["super_admin"] },
+    { id: "admins", label: "Admins Manager", icon: ShieldCheck, roles: ["super_admin"] },
+    { id: "coordinators", label: "Coordinators Manager", icon: UserCheck, roles: ["super_admin", "admin"] },
+    { id: "registrations", label: "Registrations Control", icon: Users, roles: ["super_admin", "admin", "coordinator"] },
+    { id: "schedules", label: "Match Schedules", icon: CalendarDays, roles: ["super_admin", "admin", "coordinator"] },
+    { id: "notifications", label: "Announcements", icon: Megaphone, roles: ["super_admin", "admin", "coordinator"] },
+    { id: "gallery", label: "Gallery Upload", icon: ImageIcon, roles: ["super_admin", "admin"] },
+    { id: "faq_management", label: "FAQ Editor", icon: HelpCircle, roles: ["super_admin", "admin"] },
     { id: "about", label: "About Section", icon: User, roles: ["super_admin"] },
     { id: "rules_contacts", label: "Rules & Directory", icon: BookOpen, roles: ["super_admin"] },
     { id: "payment_settings", label: "Payment Settings", icon: QrCode, roles: ["super_admin"] },
+    { id: "activity_logs", label: "Audit Logs", icon: ScrollText, roles: ["super_admin"] },
+    { id: "backup_reset", label: "Backup & Reset", icon: Archive, roles: ["super_admin"] },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => item.roles.includes(user.role));
+  const filteredMenuItems = menuItems.filter((item) => canAccessTab(user, item.id));
 
   const getRoleBadgeColor = () => {
-    return user.role === "super_admin" 
-      ? "bg-red-500/10 border-red-500/30 text-red-400" 
-      : "bg-amber-500/10 border-amber-500/30 text-amber-400";
+    if (user.role === "super_admin") {
+      return "bg-red-500/10 border-red-500/30 text-red-400";
+    }
+    if (user.role === "admin") {
+      return "bg-violet-500/10 border-violet-500/30 text-violet-400";
+    }
+    return "bg-amber-500/10 border-amber-500/30 text-amber-400";
   };
 
   return (
@@ -98,7 +114,7 @@ export default function AdminLayout({
                 CHAKRAVYUH <span className="text-orange-500">2K26</span>
               </h1>
               <p className="text-[10px] text-gray-500 font-mono hidden sm:block">
-                IMSEC Engineering College Sports Admin
+                IMS Engineering College Sports Admin
               </p>
             </div>
           </div>
@@ -113,11 +129,16 @@ export default function AdminLayout({
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${getRoleBadgeColor()}`}>
-                {user.role === "super_admin" ? "SUPER ADMIN" : `COORDINATOR`}
+                {roleDisplayLabel(user)}
               </span>
               {user.role === "coordinator" && (
                 <span className="text-[9px] text-gray-500 font-mono">
                   ({user.assignedSports.join(", ")})
+                </span>
+              )}
+              {user.role === "admin" && (
+                <span className="text-[9px] text-gray-500 font-mono">
+                  scope: {resolveAdminScope(user)}
                 </span>
               )}
             </div>

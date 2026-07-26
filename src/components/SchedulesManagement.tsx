@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
-import { ScheduleItem } from "../types";
+import { ScheduleItem, AdminUser } from "../types";
+import { canManageSchedulesFully } from "../lib/permissions";
 import { 
   Calendar, 
   Plus, 
@@ -15,7 +16,8 @@ import {
   AlertCircle 
 } from "lucide-react";
 
-export default function SchedulesManagement() {
+export default function SchedulesManagement({ user }: { user: AdminUser }) {
+  const fullAccess = canManageSchedulesFully(user);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -95,6 +97,15 @@ export default function SchedulesManagement() {
       } else {
         await dbService.saveScheduleItem(payload);
       }
+      await dbService.logActivity({
+        actorUid: user.uid,
+        actorName: user.displayName,
+        actorRole: user.role,
+        action: "schedule_updated",
+        targetType: "schedule",
+        targetId: editId || title,
+        summary: `${editId ? "Updated" : "Created"} schedule: ${title}`,
+      });
       resetForm();
       loadSchedules();
     } catch (err) {
@@ -107,6 +118,15 @@ export default function SchedulesManagement() {
     if (confirm("Are you sure you want to permanently delete this scheduled match fixture?")) {
       try {
         await dbService.deleteScheduleItem(id);
+        await dbService.logActivity({
+          actorUid: user.uid,
+          actorName: user.displayName,
+          actorRole: user.role,
+          action: "schedule_deleted",
+          targetType: "schedule",
+          targetId: id,
+          summary: `Deleted schedule ${id}`,
+        });
         loadSchedules();
       } catch (err) {
         console.error(err);
@@ -119,6 +139,15 @@ export default function SchedulesManagement() {
       await dbService.saveScheduleItem({
         ...item,
         status: nextStatus
+      });
+      await dbService.logActivity({
+        actorUid: user.uid,
+        actorName: user.displayName,
+        actorRole: user.role,
+        action: "schedule_updated",
+        targetType: "schedule",
+        targetId: item.id,
+        summary: `Match status → ${nextStatus}: ${item.title}`,
       });
       loadSchedules();
     } catch (err) {
@@ -144,9 +173,13 @@ export default function SchedulesManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-white font-mono">Match Schedules & Fixtures</h2>
-          <p className="text-xs text-gray-500 mt-1">Publish daily event times, bracket updates, and live statuses.</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {fullAccess
+              ? "Publish daily event times, bracket updates, and live statuses."
+              : "View fixtures and update live match status (scores / completion)."}
+          </p>
         </div>
-        {!isEditing && (
+        {fullAccess && !isEditing && (
           <button 
             onClick={() => setIsEditing(true)}
             className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-orange-500/10"

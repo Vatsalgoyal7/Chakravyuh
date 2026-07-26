@@ -12,12 +12,19 @@ export default function PublicDashboard() {
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Fetch announcements
+  // Recovery and Local cache states
+  const [recentRegistrations, setRecentRegistrations] = useState<any[]>([]);
+  const [recoverQuery, setRecoverQuery] = useState("");
+  const [recoverResults, setRecoverResults] = useState<any[]>([]);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [hasRecovered, setHasRecovered] = useState(false);
+  const [showRecoverForm, setShowRecoverForm] = useState(false);
+
+  // Fetch announcements & load local cache
   useEffect(() => {
     async function loadData() {
       try {
         const notices = await dbService.getAnnouncements();
-        // filter active ones
         setAnnouncements(notices.filter(n => n.isActive));
       } catch (err) {
         console.error("Failed to load announcements for public portal", err);
@@ -26,6 +33,20 @@ export default function PublicDashboard() {
       }
     }
     loadData();
+
+    try {
+      const stored = localStorage.getItem("chakravyuh_my_registrations");
+      if (stored) {
+        setRecentRegistrations(JSON.parse(stored));
+      }
+      const showRecover = sessionStorage.getItem("chakravyuh_auto_show_recover");
+      if (showRecover === "true") {
+        setShowRecoverForm(true);
+        sessionStorage.removeItem("chakravyuh_auto_show_recover");
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   // Handle registration search lookup
@@ -44,6 +65,36 @@ export default function PublicDashboard() {
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const handleRecoverLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoverQuery.trim()) return;
+
+    setIsRecovering(true);
+    setHasRecovered(true);
+    try {
+      const results = await dbService.getRegistrationsByLookup(recoverQuery);
+      setRecoverResults(results);
+    } catch (err) {
+      console.error("Recovery lookup failed:", err);
+      setRecoverResults([]);
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
+  const handleSelectTrackingCode = (code: string) => {
+    setSearchQuery(code);
+    setIsSearching(true);
+    setHasSearched(true);
+    dbService.getPublicRegistrationStatus(code)
+      .then(res => setSearchResult(res))
+      .catch(err => {
+        console.error(err);
+        setSearchResult(null);
+      })
+      .finally(() => setIsSearching(false));
   };
 
   // Helper for status badge
@@ -203,6 +254,101 @@ export default function PublicDashboard() {
                   {isSearching ? "Searching Records..." : "Query Status"}
                 </button>
               </form>
+
+              {/* Recent registrations on this device */}
+              {recentRegistrations.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <span className="block text-[9px] font-mono uppercase tracking-wider text-gray-500 font-bold">
+                    Recent Registrations on this Device
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {recentRegistrations.map((reg) => (
+                      <button
+                        key={reg.trackingCode}
+                        onClick={() => handleSelectTrackingCode(reg.trackingCode)}
+                        className="px-2.5 py-1.5 rounded-lg text-[10px] font-mono font-medium border border-white/5 bg-[#07080a] hover:border-orange-500/30 text-gray-400 hover:text-white transition-all text-left flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                        <span>{reg.eventTitle} ({reg.trackingCode.substring(0, 8)}...)</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Forgot Tracking Code Section */}
+              <div className="pt-2 border-t border-white/5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRecoverForm(!showRecoverForm);
+                    setRecoverResults([]);
+                    setHasRecovered(false);
+                    setRecoverQuery("");
+                  }}
+                  className="text-[10px] font-mono text-gray-500 hover:text-orange-400 transition-all flex items-center gap-1 cursor-pointer bg-transparent border-none outline-none"
+                >
+                  <span>{showRecoverForm ? "✕ Hide recovery options" : "❓ Forgot Tracking Code?"}</span>
+                </button>
+                
+                {showRecoverForm && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="mt-3 p-4 rounded-xl border border-white/5 bg-[#07080a] space-y-3"
+                  >
+                    <form onSubmit={handleRecoverLookup} className="space-y-2">
+                      <label className="block text-[9px] font-mono uppercase tracking-wider text-gray-500 font-bold">
+                        Search by Roll Number or Email Address
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          value={recoverQuery}
+                          onChange={(e) => setRecoverQuery(e.target.value)}
+                          placeholder="Roll No or Email"
+                          className="flex-1 bg-[#0f1115] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/40 font-mono"
+                        />
+                        <button
+                          type="submit"
+                          disabled={isRecovering}
+                          className="px-4 py-2 bg-orange-500/10 hover:bg-orange-500/25 border border-orange-500/20 text-orange-400 font-mono font-bold text-xs rounded-lg transition-all cursor-pointer"
+                        >
+                          {isRecovering ? "..." : "Find"}
+                        </button>
+                      </div>
+                    </form>
+
+                    {hasRecovered && (
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
+                        {recoverResults.length === 0 ? (
+                          <p className="text-[10px] font-mono text-red-400 text-center py-1">No registration records found.</p>
+                        ) : (
+                          recoverResults.map(reg => (
+                            <div key={reg.id} className="flex items-center justify-between p-2 rounded border border-white/[0.03] bg-white/[0.01] hover:border-white/10">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-mono font-bold truncate text-white uppercase">{reg.eventTitle}</p>
+                                <p className="text-[8px] font-mono text-gray-500 truncate">Code: {reg.trackingCode} | {reg.leadName}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleSelectTrackingCode(reg.trackingCode);
+                                  setShowRecoverForm(false);
+                                }}
+                                className="px-2 py-1 bg-orange-500 text-[#07080a] font-mono text-[9px] font-black rounded uppercase hover:bg-orange-600 transition-all shrink-0 ml-2 cursor-pointer"
+                              >
+                                Track
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </div>
 
               {/* Inquiry Search Results */}
               <AnimatePresence mode="wait">
