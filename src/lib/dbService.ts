@@ -1100,7 +1100,8 @@ export const dbService = {
     if (isFirebaseConfigured && db) {
       try {
         const snapshot = await getDocs(collection(db, "contacts"));
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Contact));
+        const contacts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Contact));
+        return contacts.sort((a, b) => a.order - b.order);
       } catch (err) {
         console.error("Firestore getContacts failed, reading local storage:", err);
       }
