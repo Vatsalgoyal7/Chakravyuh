@@ -179,7 +179,12 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
   };
 
   const pendingUsers = users.filter(u => u.role === 'pending');
-  const activeUsers = users.filter(u => u.role !== 'pending');
+  // Admin can only see coordinators — super_admin/admin rows are hidden from admin view
+  const activeUsers = users.filter(u => {
+    if (u.role === 'pending') return false;
+    if (currentUser.role !== 'super_admin') return u.role === 'coordinator';
+    return true;
+  });
 
   if (isLoading) {
     return (

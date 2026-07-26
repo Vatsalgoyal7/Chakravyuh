@@ -82,6 +82,36 @@ export default function FAQManagement() {
     }
   };
 
+  const DEFAULT_FAQS_SEED = [
+    { q: "How do I register for Chakravyuh 2K26?", a: "Visit the 'Register' section on this website, select your sport event, fill in your personal and team details, and submit. You will receive a Tracking Code immediately after successful submission. Use it to track your registration status anytime.", order: 1 },
+    { q: "Can I register for multiple sports?", a: "Yes! You can register for multiple sports individually. Each sport registration is separate. Simply complete one registration and then return to the Register page to submit another for a different sport.", order: 2 },
+    { q: "What is the registration fee and how do I pay?", a: "The registration fee is set by the organizing committee and is displayed on the registration form. Payment is made via UPI — scan the QR code or use the UPI ID shown, then enter the UTR/transaction number in the form for verification.", order: 3 },
+    { q: "What is the last date to register?", a: "The registration deadline is October 03, 2026. Late entries will not be accepted under any circumstances. We strongly recommend registering at least 2-3 days before the deadline to avoid any technical delays.", order: 4 },
+    { q: "Is an NOC required for outstation participants?", a: "Yes. Outstation teams (from colleges other than IMSEC) must carry a valid NOC (No Objection Certificate) from their respective institution. This document must be presented at the venue registration desk on the day of the event.", order: 5 },
+    { q: "How can I track my registration status?", a: "Use the 'Track Status' link in the navigation bar. Enter your Tracking Code (received via email or displayed after registration) to instantly check your current approval status, payment verification, and event details.", order: 6 },
+    { q: "What documents should I carry to the venue?", a: "Please carry: (1) Your College ID Card, (2) Printed or digital copy of your Registration Tracking Code, (3) NOC letter if from an outstation college, (4) Payment receipt or UTR screenshot as proof of fee payment.", order: 7 },
+    { q: "Can I participate without a college ID?", a: "No. A valid college ID is mandatory for all participants. Students without a college ID will not be permitted to participate or enter the arena. IMS Engineering College students must show their IMSEC Identity Card.", order: 8 },
+    { q: "How does team registration work?", a: "For team sports (e.g., Cricket, Football, Basketball), one player registers as the Team Leader and enters the names and details of all team members in the Members section. All members will be covered under the same Tracking Code.", order: 9 },
+    { q: "What if I need to withdraw after registering?", a: "Contact the sports coordinator for your specific event (listed in the Rules & Contacts section) as soon as possible. Withdrawal requests must be made at least 48 hours before the event date. Registration fees are generally non-refundable.", order: 10 },
+    { q: "Where will the events be held?", a: "All sports events will be held at the IMSEC Play Ground, Ghaziabad campus, October 10–11, 2026. Indoor sports (Badminton, Table Tennis, Chess, Carrom) will be held in the college sports hall. Exact venue maps will be shared closer to the event.", order: 11 },
+    { q: "How will match schedules and results be communicated?", a: "Match schedules will be published on the 'Schedule' page of this website. Results and bracket updates will be announced via the Announcements section. You may also contact your sport's coordinator directly for the latest information.", order: 12 },
+    { q: "What if I face technical issues during registration?", a: "If you encounter any technical difficulty while registering, take a screenshot of the error and contact our support team. You can reach the Main Coordinator (Vatsal Goyal) at the contact number listed under Rules & Contacts on this website.", order: 13 },
+    { q: "Are accommodation or travel facilities available for outstation teams?", a: "Accommodation is not officially arranged by the organizing committee. Outstation teams are advised to make their own travel and lodging arrangements. However, local contact references for nearby guest houses can be provided on request — please reach out to the main coordinator.", order: 14 },
+  ];
+
+  const handleSeedDefaultFAQs = async () => {
+    if (!confirm(`This will add ${DEFAULT_FAQS_SEED.length} default FAQs. Continue?`)) return;
+    try {
+      for (const faq of DEFAULT_FAQS_SEED) {
+        await dbService.saveFAQ(faq);
+      }
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to seed FAQs.");
+    }
+  };
+
   const handleMove = async (faq: FAQItem, direction: "up" | "down") => {
     const idx = faqs.findIndex(f => f.id === faq.id);
     if (idx === -1) return;
@@ -207,8 +237,14 @@ export default function FAQManagement() {
           <p className="text-xs text-gray-500 font-mono">Loading FAQs list...</p>
         </div>
       ) : faqs.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gray-800 rounded-2xl font-mono text-xs text-gray-500">
-          No FAQs configured yet. Click "Add New FAQ" to create your first entry.
+        <div className="text-center py-16 border border-dashed border-gray-800 rounded-2xl font-mono text-xs text-gray-500 space-y-4">
+          <p>No FAQs configured yet. Click "Add New FAQ" to create your first entry.</p>
+          <button
+            onClick={handleSeedDefaultFAQs}
+            className="px-5 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 font-bold rounded-xl text-xs transition-all cursor-pointer"
+          >
+            ✦ Load 14 Default FAQs
+          </button>
         </div>
       ) : (
         <div className="space-y-3">

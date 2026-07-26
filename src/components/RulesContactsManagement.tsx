@@ -178,6 +178,28 @@ export default function RulesContactsManagement() {
     }
   };
 
+  const handleContactMove = async (contact: Contact, direction: "up" | "down") => {
+    const sorted = [...contacts].sort((a, b) => a.order - b.order);
+    const idx = sorted.findIndex(c => c.id === contact.id);
+    if (idx === -1) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= sorted.length) return;
+
+    // Swap positions in array
+    const newSorted = [...sorted];
+    [newSorted[idx], newSorted[targetIdx]] = [newSorted[targetIdx], newSorted[idx]];
+
+    // Re-index all sequentially so order is always unique (1,2,3...)
+    const reIndexed = newSorted.map((c, i) => ({ ...c, order: i + 1 }));
+
+    try {
+      await Promise.all(reIndexed.map(c => dbService.saveContact({ ...c })));
+      loadData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-96 flex items-center justify-center">
@@ -428,7 +450,9 @@ export default function RulesContactsManagement() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {contacts.map((contact) => (
+            {[...contacts].sort((a, b) => a.order - b.order).map((contact, idx) => {
+              const sorted = [...contacts].sort((a, b) => a.order - b.order);
+              return (
               <div key={contact.id} className="bg-[#12141a] border border-gray-800/80 p-5 rounded-2xl flex justify-between items-start group hover:border-gray-700 transition-all">
                 
                 <div className="space-y-2.5">
@@ -460,17 +484,40 @@ export default function RulesContactsManagement() {
                   </div>
                 </div>
 
-                <div className="flex gap-1">
-                  <button onClick={() => handleContactEdit(contact)} className="p-1.5 hover:bg-orange-500/10 text-gray-500 hover:text-orange-400 rounded-lg transition-all">
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => handleContactDelete(contact.id)} className="p-1.5 hover:bg-red-500/10 text-gray-600 hover:text-red-400 rounded-lg transition-all">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div className="flex flex-col items-end gap-1">
+                  {/* Reorder buttons */}
+                  <div className="flex flex-col items-center gap-0.5 border border-gray-800 rounded-lg p-0.5 mb-1">
+                    <button
+                      disabled={idx === 0}
+                      onClick={() => handleContactMove(contact, "up")}
+                      className="p-1 hover:bg-gray-800 text-gray-500 hover:text-orange-400 rounded disabled:opacity-30 cursor-pointer transition-all"
+                      title="Move Up"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      disabled={idx === sorted.length - 1}
+                      onClick={() => handleContactMove(contact, "down")}
+                      className="p-1 hover:bg-gray-800 text-gray-500 hover:text-orange-400 rounded disabled:opacity-30 cursor-pointer transition-all"
+                      title="Move Down"
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {/* Edit / Delete */}
+                  <div className="flex gap-1">
+                    <button onClick={() => handleContactEdit(contact)} className="p-1.5 hover:bg-orange-500/10 text-gray-500 hover:text-orange-400 rounded-lg transition-all">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleContactDelete(contact.id)} className="p-1.5 hover:bg-red-500/10 text-gray-600 hover:text-red-400 rounded-lg transition-all">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
               </div>
-            ))}
+            );
+            })}
           </div>
 
         </div>
