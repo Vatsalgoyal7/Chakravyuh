@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Chakravyuh 2K26
 
 Production-ready sports-fest portal for IMSEC. It includes a public website, event registrations, privacy-safe status tracking, and a role-controlled admin workspace.
@@ -42,3 +43,6 @@ Production-ready sports-fest portal for IMSEC. It includes a public website, eve
 - Coordinators can read and manage registrations for their assigned events only.
 - Visitors can retrieve only a single non-sensitive registration-status record by tracking code.
 - Use Firebase Storage for production uploads. Cloudinary is optional and should use a restricted unsigned preset.
+=======
+# Chakravyuh
+>>>>>>> 6f779f4b5fa312fd72e6e1bd59fb89aa568f18c1
