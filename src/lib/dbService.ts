@@ -1862,24 +1862,10 @@ export const dbService = {
   async updateRegistrationPaymentStatus(registrationId: string, status: 'payment_submitted' | 'payment_verified' | 'payment_rejected'): Promise<void> {
     if (isFirebaseConfigured && db) {
       try {
-        await updateDoc(doc(db, "registrations", registrationId), {
-          paymentStatus: status,
-          paymentVerifiedAt: status === 'payment_verified' ? new Date().toISOString() : undefined,
-          updatedAt: new Date().toISOString()
-        });
+        await updateDoc(doc(db, "registrations", registrationId), { paymentStatus: status });
+        console.log("updateRegistrationPaymentStatus - Successfully updated in Firestore");
       } catch (err) {
-        console.error("Firestore updateRegistrationPaymentStatus failed, using local storage:", err);
-        const registrations = getLocal<Registration>("registrations", []);
-        const index = registrations.findIndex(r => r.id === registrationId);
-        if (index !== -1) {
-          registrations[index] = {
-            ...registrations[index],
-            paymentStatus: status,
-            paymentVerifiedAt: status === 'payment_verified' ? new Date().toISOString() : undefined,
-            updatedAt: new Date().toISOString()
-          };
-          setLocal("registrations", registrations);
-        }
+        console.error("Firestore updateRegistrationPaymentStatus failed:", err);
       }
     } else {
       const registrations = getLocal<Registration>("registrations", []);
@@ -1893,6 +1879,63 @@ export const dbService = {
         };
         setLocal("registrations", registrations);
       }
+    }
+  },
+
+  async deletePaymentVerification(verificationId: string): Promise<void> {
+    console.log("deletePaymentVerification called - ID:", verificationId);
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await deleteDoc(doc(db, "payment_verifications", verificationId));
+        console.log("deletePaymentVerification - Successfully deleted from Firestore");
+      } catch (err) {
+        console.error("Firestore deletePaymentVerification failed:", err);
+        throw err;
+      }
+    } else {
+      const verifications = getLocal<PaymentVerification>("payment_verifications", []);
+      const filtered = verifications.filter(v => v.id !== verificationId);
+      setLocal("payment_verifications", filtered);
+      console.log("deletePaymentVerification - Successfully deleted from local storage");
+    }
+  },
+
+  async resetPaymentVerification(verificationId: string): Promise<void> {
+    console.log("resetPaymentVerification called - ID:", verificationId);
+
+    const updateData = {
+      status: 'pending' as const,
+      verifiedAt: null,
+      verifiedBy: null,
+      remarks: null
+    };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await updateDoc(doc(db, "payment_verifications", verificationId), updateData);
+        console.log("resetPaymentVerification - Successfully reset in Firestore");
+      } catch (err) {
+        console.error("Firestore resetPaymentVerification failed:", err);
+        throw err;
+      }
+    } else {
+      const verifications = getLocal<PaymentVerification>("payment_verifications", []);
+      const index = verifications.findIndex(v => v.id === verificationId);
+      if (index !== -1) {
+        verifications[index] = {
+          ...verifications[index],
+          ...updateData
+        };
+        setLocal("payment_verifications", verifications);
+        console.log("resetPaymentVerification - Successfully reset in local storage");
+      }
+    }
+
+    // Reset registration payment status back to payment_submitted
+    const verification = (await this.getPaymentVerifications()).find(v => v.id === verificationId);
+    if (verification) {
+      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_submitted');
     }
   }
 };

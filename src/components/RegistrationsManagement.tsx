@@ -1315,6 +1315,24 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                         >
                           Reject
                         </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm("Are you sure you want to delete this payment verification? This action cannot be undone.")) {
+                              try {
+                                await dbService.deletePaymentVerification(verification.id);
+                                console.log("deletePaymentVerification completed, calling loadData");
+                                setTimeout(() => loadData(), 500);
+                              } catch (error) {
+                                console.error("Error deleting payment verification:", error);
+                                alert("Error deleting payment verification: " + (error as Error).message);
+                              }
+                            }
+                          }}
+                          className="px-2 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold rounded-lg transition-colors"
+                          title="Delete verification"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </div>
                   );
@@ -1351,6 +1369,44 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                         {verification.remarks && (
                           <div className="text-[10px] text-gray-500 mt-1">Remarks: {verification.remarks}</div>
                         )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            if (confirm("Are you sure you want to reset this verification to pending?")) {
+                              try {
+                                await dbService.resetPaymentVerification(verification.id);
+                                console.log("resetPaymentVerification completed, calling loadData");
+                                setTimeout(() => loadData(), 500);
+                              } catch (error) {
+                                console.error("Error resetting payment verification:", error);
+                                alert("Error resetting payment verification: " + (error as Error).message);
+                              }
+                            }
+                          }}
+                          className="px-2 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-xs font-bold rounded-lg transition-colors"
+                          title="Reset to pending"
+                        >
+                          Reset
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm("Are you sure you want to delete this payment verification? This action cannot be undone.")) {
+                              try {
+                                await dbService.deletePaymentVerification(verification.id);
+                                console.log("deletePaymentVerification completed, calling loadData");
+                                setTimeout(() => loadData(), 500);
+                              } catch (error) {
+                                console.error("Error deleting payment verification:", error);
+                                alert("Error deleting payment verification: " + (error as Error).message);
+                              }
+                            }
+                          }}
+                          className="px-2 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-xs font-bold rounded-lg transition-colors"
+                          title="Delete verification"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </div>
                   );
