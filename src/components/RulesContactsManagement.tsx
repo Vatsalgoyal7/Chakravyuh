@@ -37,7 +37,11 @@ export default function RulesContactsManagement() {
   const [contactDesignation, setContactDesignation] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [contactGender, setContactGender] = useState<"male" | "female">("male");
   const [contactOrder, setContactOrder] = useState(1);
+  const [contactCategory, setContactCategory] = useState("General Coordinator");
+  const [contactIsMainCoordinator, setContactIsMainCoordinator] = useState(false);
+  const [contactEnabled, setContactEnabled] = useState(true);
 
   // Image states for Contacts
   const [contactImageFile, setContactImageFile] = useState<File | null>(null);
@@ -124,15 +128,22 @@ export default function RulesContactsManagement() {
         imageUrl = await uploadContactImage(contactImageFile);
       }
 
-      await dbService.saveContact({
+      const contactData = {
         name: contactName,
         designation: contactDesignation,
         phone: contactPhone,
         email: contactEmail,
         order: Number(contactOrder),
+        gender: contactGender,
         imageUrl,
+        category: contactCategory,
+        isMainCoordinator: Boolean(contactIsMainCoordinator),
+        enabled: Boolean(contactEnabled),
         id: contactEditId || undefined
-      });
+      };
+      console.log("Saving contact data with explicit boolean conversion:", contactData);
+      console.log("Raw values - contactIsMainCoordinator:", contactIsMainCoordinator, "contactEnabled:", contactEnabled, "contactCategory:", contactCategory);
+      await dbService.saveContact(contactData);
       resetContactForm();
       loadData();
     } catch (err) {
@@ -147,7 +158,11 @@ export default function RulesContactsManagement() {
     setContactDesignation("");
     setContactPhone("");
     setContactEmail("");
+    setContactGender("male");
     setContactOrder(1);
+    setContactCategory("General Coordinator");
+    setContactIsMainCoordinator(false);
+    setContactEnabled(true);
     setContactEditId(null);
     setContactImageFile(null);
     setContactImagePreview("");
@@ -161,7 +176,11 @@ export default function RulesContactsManagement() {
     setContactDesignation(c.designation);
     setContactPhone(c.phone);
     setContactEmail(c.email);
+    setContactGender(c.gender);
     setContactOrder(c.order);
+    setContactCategory(c.category || "General Coordinator");
+    setContactIsMainCoordinator(c.isMainCoordinator || false);
+    setContactEnabled(c.enabled !== undefined ? c.enabled : true);
     setContactExistingImageUrl(c.imageUrl || "");
     setContactImagePreview(c.imageUrl || "");
     setShowContactForm(true);
@@ -424,6 +443,40 @@ export default function RulesContactsManagement() {
                   </div>
 
                   <div className="space-y-1">
+                    <label className="block text-[11px] uppercase text-gray-500 font-mono font-bold">Gender *</label>
+                    <select
+                      required
+                      className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
+                      value={contactGender}
+                      onChange={(e) => setContactGender(e.target.value as "male" | "female")}
+                    >
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] uppercase text-gray-500 font-mono font-bold">Category</label>
+                    <select
+                      className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
+                      value={contactCategory}
+                      onChange={(e) => {
+                        console.log("Category changed to:", e.target.value);
+                        setContactCategory(e.target.value);
+                      }}
+                    >
+                      <option value="General Coordinator">General Coordinator</option>
+                      <option value="Sports Coordinator">Sports Coordinator</option>
+                      <option value="Discipline Coordinator">Discipline Coordinator</option>
+                      <option value="Food Coordinator">Food Coordinator</option>
+                      <option value="Medical Coordinator">Medical Coordinator</option>
+                      <option value="Logistics Coordinator">Logistics Coordinator</option>
+                      <option value="Media Coordinator">Media Coordinator</option>
+                      <option value="Technical Coordinator">Technical Coordinator</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
                     <label className="block text-[11px] uppercase text-gray-500 font-mono font-bold">Display Priority Order</label>
                     <input
                       type="number"
@@ -433,6 +486,34 @@ export default function RulesContactsManagement() {
                       value={contactOrder}
                       onChange={(e) => setContactOrder(Number(e.target.value))}
                     />
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={contactIsMainCoordinator}
+                        onChange={(e) => {
+                          console.log("Main Coordinator checkbox changed to:", e.target.checked);
+                          setContactIsMainCoordinator(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded border-gray-700 bg-[#0d0f12] text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
+                      />
+                      <span className="text-xs text-gray-300 font-semibold">Main Coordinator (Pinned at Top)</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={contactEnabled}
+                        onChange={(e) => {
+                          console.log("Enabled checkbox changed to:", e.target.checked);
+                          setContactEnabled(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded border-gray-700 bg-[#0d0f12] text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
+                      />
+                      <span className="text-xs text-gray-300 font-semibold">Enabled (Visible in Public View)</span>
+                    </label>
                   </div>
 
                 </div>
@@ -472,7 +553,7 @@ export default function RulesContactsManagement() {
 
                   <p className="text-xs text-gray-400 font-semibold pl-1">{contact.designation}</p>
 
-                  <div className="pl-1 space-y-1 text-xs font-mono text-gray-500">
+                  <div className="pl-1 space-y-1 text-[10px] font-mono text-gray-500">
                     <p className="flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-gray-600" />
                       <span className="select-all text-gray-400">{contact.phone}</span>
@@ -480,6 +561,18 @@ export default function RulesContactsManagement() {
                     <p className="flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-gray-600" />
                       <span className="select-all text-gray-400">{contact.email}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5">
+                      <span className="text-orange-400">Category:</span>
+                      <span className="text-gray-400">{contact.category || "Not set"}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5">
+                      <span className="text-orange-400">Main:</span>
+                      <span className="text-gray-400">{contact.isMainCoordinator ? "Yes" : "No"}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5">
+                      <span className="text-orange-400">Enabled:</span>
+                      <span className="text-gray-400">{contact.enabled !== false ? "Yes" : "No"}</span>
                     </p>
                   </div>
                 </div>

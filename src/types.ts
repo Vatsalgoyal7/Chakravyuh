@@ -105,6 +105,7 @@ export interface Registration {
   leadRollNo: string;
   leadBranch: string;
   leadYear: string;
+  gender: 'male' | 'female';
   // Team details if applicable
   teamName?: string;
   members?: TeamMember[];
@@ -209,7 +210,11 @@ export interface Contact {
   phone: string;
   email: string;
   order: number;
+  gender: 'male' | 'female';
   imageUrl?: string;
+  category?: string;
+  isMainCoordinator?: boolean;
+  enabled?: boolean;
 }
 
 export interface LeadershipProfile {
@@ -249,4 +254,18 @@ export interface AboutSection {
   sportsOfficerPhoto?: string;
 
   updatedAt: string;
+}
+
+export interface PaymentVerification {
+  id: string;
+  registrationId: string;
+  payerName: string;
+  payerMobile: string;
+  transactionId: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: string;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  remarks?: string;
 }

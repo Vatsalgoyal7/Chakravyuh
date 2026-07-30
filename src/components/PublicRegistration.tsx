@@ -55,6 +55,7 @@ export default function PublicRegistration({
   const [leadRollNo, setLeadRollNo] = useState("");
   const [leadBranch, setLeadBranch] = useState("");
   const [leadYear, setLeadYear] = useState("3rd Year");
+  const [gender, setGender] = useState<"male" | "female">("male");
   const [teamName, setTeamName] = useState("");
   
   useEffect(() => {
@@ -76,14 +77,18 @@ export default function PublicRegistration({
   // Submit status
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  
+  // Payment verification state
+  const [utrInput, setUtrInput] = useState("");
+  const [utrSubmitting, setUtrSubmitting] = useState(false);
+  const [utrSubmitted, setUtrSubmitted] = useState(false);
+  const [payerName, setPayerName] = useState("");
+  const [payerMobile, setPayerMobile] = useState("");
   const [successData, setSuccessData] = useState<Registration | null>(null);
   const [copiedSlip, setCopiedSlip] = useState(false);
 
   // Payment add-on states
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
-  const [utrInput, setUtrInput] = useState("");
-  const [utrSubmitting, setUtrSubmitting] = useState(false);
-  const [utrSubmitted, setUtrSubmitted] = useState(false);
 
   // Load all active events
   useEffect(() => {
@@ -270,6 +275,7 @@ export default function PublicRegistration({
       leadRollNo: leadRollNo.trim(),
       leadBranch: leadBranch.trim(),
       leadYear,
+      gender,
       teamName: teamName.trim(),
       members: selectedEvent.type === "team" ? members : [],
       duplicateCheckHash,
@@ -534,10 +540,40 @@ export default function PublicRegistration({
                     <p className="text-orange-400 font-mono text-sm">{paymentConfig.upiId}</p>
                     {paymentConfig.registrationFee > 0 && (
                       <p className={`text-2xl font-black mt-1 ${isWhiteBg ? 'text-gray-900' : 'text-white'}`}>
-                        ₹{paymentConfig.registrationFee}
+                        ₹{selectedEvent?.type === 'team' ? (paymentConfig.registrationFee * (members.length + 1)) : paymentConfig.registrationFee}
                       </p>
                     )}
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
+                    Payer Name
+                  </label>
+                  <input
+                    type="text"
+                    value={payerName}
+                    onChange={e => setPayerName(e.target.value)}
+                    placeholder="Enter name of person who paid"
+                    className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
+                      isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
+                    Payer Mobile Number
+                  </label>
+                  <input
+                    type="text"
+                    value={payerMobile}
+                    onChange={e => setPayerMobile(e.target.value)}
+                    placeholder="Enter 10-digit mobile number"
+                    className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
+                      isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
+                    }`}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -556,15 +592,25 @@ export default function PublicRegistration({
                 </div>
 
                 <button
-                  disabled={utrInput.trim().length < 6 || utrSubmitting}
+                  disabled={utrInput.trim().length < 6 || utrSubmitting || payerName.trim().length < 2 || payerMobile.trim().length < 10}
                   onClick={async () => {
-                    if (!successData || utrInput.trim().length < 6) return;
+                    if (!successData || utrInput.trim().length < 6 || payerName.trim().length < 2 || payerMobile.trim().length < 10) return;
                     setUtrSubmitting(true);
                     try {
-                      await dbService.submitPaymentUTR(successData.id, utrInput.trim());
+                      const amount = selectedEvent?.type === 'team' ? (paymentConfig.registrationFee * (members.length + 1)) : paymentConfig.registrationFee;
+                      await dbService.submitPaymentVerification({
+                        registrationId: successData.id,
+                        payerName: payerName.trim(),
+                        payerMobile: payerMobile.trim(),
+                        transactionId: utrInput.trim(),
+                        amount: amount,
+                        status: 'pending'
+                      });
+                      await dbService.updateRegistrationPaymentStatus(successData.id, 'payment_submitted');
                       setUtrSubmitted(true);
                     } catch (err) {
                       console.error(err);
+                      alert("Failed to submit payment verification. Please try again.");
                     } finally {
                       setUtrSubmitting(false);
                     }
@@ -871,6 +917,18 @@ export default function PublicRegistration({
                           {["1st Year", "2nd Year", "3rd Year", "4th Year"].map((yr) => (
                             <option key={yr} value={yr} className="bg-[#0c0d10]">{yr}</option>
                           ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-gray-400 font-bold uppercase text-[10px]">Gender *</label>
+                        <select
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value as "male" | "female")}
+                          className="w-full px-3.5 py-3.5 bg-[#08090c] border border-white/[0.06] rounded-2xl focus:border-orange-500 focus:outline-none text-white transition-all cursor-pointer font-semibold"
+                          required
+                        >
+                          <option value="male" className="bg-[#0c0d10]">Male</option>
+                          <option value="female" className="bg-[#0c0d10]">Female</option>
                         </select>
                       </div>
                     </div>

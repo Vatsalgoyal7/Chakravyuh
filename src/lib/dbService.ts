@@ -27,7 +27,8 @@ import {
   PublicRegistrationStatus,
   FAQItem,
   ActivityLogEntry,
-  RevenueAnalytics
+  RevenueAnalytics,
+  PaymentVerification
 } from "../types";
 
 // Safe UUID generator - works on both HTTP and HTTPS (crypto.randomUUID only works on HTTPS)
@@ -389,6 +390,7 @@ const DEFAULT_REGISTRATIONS: Registration[] = [
     leadRollNo: "2301430100055",
     leadBranch: "CSE",
     leadYear: "3rd Year",
+    gender: "male",
     teamName: "IMSEC Avengers",
     members: [
       {
@@ -487,7 +489,11 @@ const DEFAULT_CONTACTS: Contact[] = [
     designation: "Director of Physical Education & Sports",
     phone: "9415123456",
     email: "sports.director@imsec.ac.in",
-    order: 1
+    order: 1,
+    gender: "male",
+    category: "General Coordinator",
+    isMainCoordinator: true,
+    enabled: true
   }
 ];
 
@@ -894,29 +900,39 @@ export const dbService = {
   },
 
   async updateRegistrationStatus(
-    id: string, 
-    status: 'pending' | 'approved' | 'rejected', 
+    id: string,
+    status: 'pending' | 'approved' | 'rejected',
     remarks: string = "",
     approvedBy: string = ""
   ): Promise<Registration> {
+    console.log("updateRegistrationStatus called with:", { id, status, remarks, approvedBy });
+
+    if (!id) {
+      console.error("updateRegistrationStatus: id is undefined");
+      throw new Error("Registration ID is required");
+    }
+
     const timestamp = new Date().toISOString();
 
     if (isFirebaseConfigured && db) {
       try {
         const regRef = doc(db, "registrations", id);
-        const updateData = { 
-          status, 
-          remarks, 
-          approvedBy, 
+        const updateData = {
+          status,
+          remarks,
+          approvedBy,
           approvedAt: timestamp,
-          updatedAt: timestamp 
+          updatedAt: timestamp
         };
         const currentDoc = await getDoc(regRef);
         if (!currentDoc.exists()) throw new Error("Registration record not found");
         const currentRegistration = { id: currentDoc.id, ...currentDoc.data() } as Registration;
         const batch = writeBatch(db);
         batch.update(regRef, updateData);
-        batch.update(doc(db, "registration_status", currentRegistration.trackingCode), { status });
+        // Only update registration_status if trackingCode exists
+        if (currentRegistration.trackingCode && currentRegistration.trackingCode !== "undefined") {
+          batch.update(doc(db, "registration_status", currentRegistration.trackingCode), { status });
+        }
         await batch.commit();
         const updatedDoc = await getDoc(regRef);
         return { id: updatedDoc.id, ...updatedDoc.data() } as Registration;
@@ -972,7 +988,10 @@ export const dbService = {
         batch.delete(doc(db, "registrations", id));
         if (registrationDoc.exists()) {
           const registration = registrationDoc.data() as Registration;
-          batch.delete(doc(db, "registration_status", registration.trackingCode));
+          // Only delete from registration_status if trackingCode exists
+          if (registration.trackingCode && registration.trackingCode !== "undefined") {
+            batch.delete(doc(db, "registration_status", registration.trackingCode));
+          }
         }
         await batch.commit();
         return;
@@ -1101,22 +1120,26 @@ export const dbService = {
       try {
         const snapshot = await getDocs(collection(db, "contacts"));
         const contacts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Contact));
+        console.log("getContacts - Retrieved from Firestore:", contacts);
         return contacts.sort((a, b) => a.order - b.order);
       } catch (err) {
         console.error("Firestore getContacts failed, reading local storage:", err);
       }
     }
     const contacts = getLocal<Contact>("contacts", DEFAULT_CONTACTS);
+    console.log("getContacts - Retrieved from local storage:", contacts);
     return contacts.sort((a, b) => a.order - b.order);
   },
 
   async saveContact(item: Omit<Contact, "id"> & { id?: string }): Promise<Contact> {
     const id = item.id || `contact_${Date.now()}`;
     const fullItem: Contact = { ...item, id };
+    console.log("saveContact - fullItem:", fullItem);
 
     if (isFirebaseConfigured && db) {
       try {
         await setDoc(doc(db, "contacts", id), fullItem);
+        console.log("saveContact - Successfully saved to Firestore");
         return fullItem;
       } catch (err) {
         console.error("Firestore saveContact failed, writing to local storage:", err);
@@ -1131,6 +1154,7 @@ export const dbService = {
       local.push(fullItem);
     }
     setLocal("contacts", local);
+    console.log("saveContact - Successfully saved to local storage");
     return fullItem;
   },
 
@@ -1746,5 +1770,130 @@ export const dbService = {
 
     return { archiveKey };
   },
+
+  // Payment Verification Methods
+  async submitPaymentVerification(verification: Omit<PaymentVerification, "id" | "submittedAt">): Promise<PaymentVerification> {
+    const newVerification: PaymentVerification = {
+      ...verification,
+      id: generateUUID(),
+      submittedAt: new Date().toISOString()
+    };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await setDoc(doc(db, "payment_verifications", newVerification.id), newVerification);
+      } catch (err) {
+        console.error("Firestore submitPaymentVerification failed, using local storage:", err);
+        setLocal<PaymentVerification>("payment_verifications", [...getLocal<PaymentVerification>("payment_verifications", []), newVerification]);
+      }
+    } else {
+      setLocal<PaymentVerification>("payment_verifications", [...getLocal<PaymentVerification>("payment_verifications", []), newVerification]);
+    }
+
+    return newVerification;
+  },
+
+  async getPaymentVerifications(): Promise<PaymentVerification[]> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const snapshot = await getDocs(collection(db, "payment_verifications"));
+        const verifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PaymentVerification));
+        console.log("getPaymentVerifications - Retrieved from Firestore:", verifications);
+        return verifications;
+      } catch (err) {
+        console.error("Firestore getPaymentVerifications failed, reading local storage:", err);
+      }
+    }
+    const verifications = getLocal<PaymentVerification>("payment_verifications", []);
+    console.log("getPaymentVerifications - Retrieved from local storage:", verifications);
+    return verifications;
+  },
+
+  async verifyPayment(verificationId: string, status: 'approved' | 'rejected', verifiedBy: string, remarks?: string): Promise<void> {
+    console.log("verifyPayment called - ID:", verificationId, "status:", status, "verifiedBy:", verifiedBy, "remarks:", remarks);
+
+    // Handle undefined verifiedBy
+    const verifiedByName = verifiedBy || "Admin";
+
+    // Build update object - only include remarks if it has a value
+    const updateData: any = {
+      status,
+      verifiedAt: new Date().toISOString(),
+      verifiedBy: verifiedByName
+    };
+    if (remarks !== undefined && remarks !== null && remarks.trim() !== "") {
+      updateData.remarks = remarks;
+    }
+
+    // Update Firestore as primary storage (payment verifications are stored in Firestore)
+    if (isFirebaseConfigured && db) {
+      try {
+        await updateDoc(doc(db, "payment_verifications", verificationId), updateData);
+        console.log("verifyPayment - Successfully updated in Firestore");
+      } catch (err) {
+        console.error("Firestore verifyPayment failed:", err);
+        throw err;
+      }
+    } else {
+      // Fallback to local storage if Firebase not configured
+      const verifications = getLocal<PaymentVerification>("payment_verifications", []);
+      const index = verifications.findIndex(v => v.id === verificationId);
+      if (index !== -1) {
+        verifications[index] = {
+          ...verifications[index],
+          ...updateData
+        };
+        setLocal("payment_verifications", verifications);
+        console.log("verifyPayment - Successfully updated in local storage");
+      } else {
+        console.error("verifyPayment - Verification ID not found in local storage:", verificationId);
+      }
+    }
+
+    // Update registration payment status based on verification
+    const verification = (await this.getPaymentVerifications()).find(v => v.id === verificationId);
+    if (verification && status === 'approved') {
+      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_verified');
+    } else if (verification && status === 'rejected') {
+      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_rejected');
+    }
+  },
+
+  async updateRegistrationPaymentStatus(registrationId: string, status: 'payment_submitted' | 'payment_verified' | 'payment_rejected'): Promise<void> {
+    if (isFirebaseConfigured && db) {
+      try {
+        await updateDoc(doc(db, "registrations", registrationId), {
+          paymentStatus: status,
+          paymentVerifiedAt: status === 'payment_verified' ? new Date().toISOString() : undefined,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("Firestore updateRegistrationPaymentStatus failed, using local storage:", err);
+        const registrations = getLocal<Registration>("registrations", []);
+        const index = registrations.findIndex(r => r.id === registrationId);
+        if (index !== -1) {
+          registrations[index] = {
+            ...registrations[index],
+            paymentStatus: status,
+            paymentVerifiedAt: status === 'payment_verified' ? new Date().toISOString() : undefined,
+            updatedAt: new Date().toISOString()
+          };
+          setLocal("registrations", registrations);
+        }
+      }
+    } else {
+      const registrations = getLocal<Registration>("registrations", []);
+      const index = registrations.findIndex(r => r.id === registrationId);
+      if (index !== -1) {
+        registrations[index] = {
+          ...registrations[index],
+          paymentStatus: status,
+          paymentVerifiedAt: status === 'payment_verified' ? new Date().toISOString() : undefined,
+          updatedAt: new Date().toISOString()
+        };
+        setLocal("registrations", registrations);
+      }
+    }
+  }
 };
 

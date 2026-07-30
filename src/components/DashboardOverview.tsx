@@ -2,6 +2,21 @@ import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
 import { SportEvent, Registration, ScheduleItem, Announcement, AdminUser } from "../types";
 import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
+import {
   filterEventsByUserScope,
   getRegistrationEventFilter,
 } from "../lib/permissions";
@@ -119,6 +134,55 @@ export default function DashboardOverview({ user, onNavigate, onUpdateUser }: Da
 
   const distributionEntries = Object.entries(sportDistribution);
   const maxRegsValue = Math.max(...distributionEntries.map(([_, count]) => Number(count)), 1);
+
+  // Registration trends over time (last 7 days)
+  const registrationTrends = registrations.reduce((acc: { [key: string]: number }, reg) => {
+    const date = new Date(reg.registeredAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    acc[date] = (acc[date] || 0) + 1;
+    return acc;
+  }, {});
+
+  const trendData = Object.entries(registrationTrends).map(([date, count]) => ({
+    date,
+    registrations: count
+  })).slice(-7); // Last 7 days
+
+  // College-wise stats
+  const collegeStats = registrations.reduce((acc: { [key: string]: number }, reg) => {
+    acc[reg.leadCollege] = (acc[reg.leadCollege] || 0) + 1;
+    return acc;
+  }, {});
+
+  const collegeData = Object.entries(collegeStats).map(([college, count]) => ({
+    college: college.length > 15 ? college.substring(0, 15) + '...' : college,
+    registrations: count
+  })).sort((a, b) => b.registrations - a.registrations).slice(0, 10);
+
+  // Payment analytics
+  const paymentStats = registrations.reduce((acc: { [key: string]: number }, reg) => {
+    const status = reg.paymentStatus || 'unknown';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const paymentData = Object.entries(paymentStats).map(([status, count]) => ({
+    status: status.replace('_', ' ').toUpperCase(),
+    count
+  }));
+
+  // Gender distribution
+  const genderStats = registrations.reduce((acc: { [key: string]: number }, reg) => {
+    const gender = reg.gender || 'unknown';
+    acc[gender] = (acc[gender] || 0) + 1;
+    return acc;
+  }, {});
+
+  const genderData = Object.entries(genderStats).map(([gender, count]) => ({
+    gender: gender.charAt(0).toUpperCase() + gender.slice(1),
+    count
+  }));
+
+  const COLORS = ['#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
   return (
     <div className="space-y-6">
@@ -268,108 +332,218 @@ export default function DashboardOverview({ user, onNavigate, onUpdateUser }: Da
 
       </div>
 
-      {/* Visual Analytics Sections (Custom CSS-SVG charts) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Visual Analytics Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Registration Distribution by Sport Chart */}
-        <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-6">
+        {/* Registration Trends Chart */}
+        <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">Registration Breakdown</h3>
-              <p className="text-[11px] text-gray-500 mt-0.5">Distribution of registration applications across active sports events</p>
+              <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">Registration Trends</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">Last 7 days registration activity</p>
             </div>
-            <span className="text-[10px] font-mono text-orange-500 bg-orange-500/5 px-2.5 py-1 rounded-full border border-orange-500/10">
-              Live Chart
-            </span>
           </div>
-
-          <div className="space-y-4">
-            {distributionEntries.length === 0 ? (
-              <p className="text-xs text-gray-500 italic py-6 text-center font-mono">No active registration distribution yet.</p>
-            ) : (
-              distributionEntries.map(([sportTitle, count]) => {
-                const countNum = Number(count);
-                const percentage = (countNum / maxRegsValue) * 100;
-                return (
-                  <div key={sportTitle} className="space-y-1">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-semibold text-gray-200">{sportTitle}</span>
-                      <span className="font-mono text-gray-400 font-bold">{countNum} Teams</span>
-                    </div>
-                    <div className="w-full bg-[#181a20] rounded-full h-2.5 overflow-hidden border border-gray-800">
-                      <div 
-                        style={{ width: `${percentage}%` }}
-                        className="bg-gradient-to-r from-orange-500 to-amber-600 h-full rounded-full transition-all duration-1000"
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+              <XAxis dataKey="date" stroke="#6b7280" fontSize={10} />
+              <YAxis stroke="#6b7280" fontSize={10} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#11141b', border: '1px solid #374151', borderRadius: '8px' }}
+                itemStyle={{ color: '#e5e7eb' }}
+              />
+              <Line type="monotone" dataKey="registrations" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316' }} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Live System Log and Quick Links */}
-        <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">Quick Actions</h3>
-              <Sparkles className="w-4 h-4 text-orange-500" />
-            </div>
-
-            <div className="space-y-2.5">
-              <button 
-                onClick={() => onNavigate("registrations")}
-                className="w-full p-3 bg-[#171a22] hover:bg-orange-500/10 border border-gray-800/80 hover:border-orange-500/20 rounded-xl transition-all text-left flex items-center justify-between group"
-              >
-                <div>
-                  <h4 className="text-xs font-bold text-gray-200 group-hover:text-orange-500 transition-colors">Review Pending Registrations</h4>
-                  <p className="text-[10px] text-gray-500 mt-0.5">Audit student forms, approve status and trigger codes.</p>
-                </div>
-                <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-all" />
-              </button>
-
-              {user.role === "super_admin" && (
-                <button 
-                  onClick={() => onNavigate("events")}
-                  className="w-full p-3 bg-[#171a22] hover:bg-orange-500/10 border border-gray-800/80 hover:border-orange-500/20 rounded-xl transition-all text-left flex items-center justify-between group"
-                >
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-200 group-hover:text-orange-500 transition-colors">Create New Sport Category</h4>
-                    <p className="text-[10px] text-gray-500 mt-0.5">Publish a new individual or team game fixture.</p>
-                  </div>
-                  <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-all" />
-                </button>
-              )}
-
-              <button 
-                onClick={() => onNavigate("schedules")}
-                className="w-full p-3 bg-[#171a22] hover:bg-orange-500/10 border border-gray-800/80 hover:border-orange-500/20 rounded-xl transition-all text-left flex items-center justify-between group"
-              >
-                <div>
-                  <h4 className="text-xs font-bold text-gray-200 group-hover:text-orange-500 transition-colors">Modify Match Schedules</h4>
-                  <p className="text-[10px] text-gray-500 mt-0.5">Post-match results or live update venues.</p>
-                </div>
-                <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-all" />
-              </button>
+        {/* College-wise Stats */}
+        <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">College-wise Stats</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">Top 10 colleges by registrations</p>
             </div>
           </div>
-
-          <div className="border-t border-gray-800/60 pt-4 mt-4">
-            <h4 className="text-[10px] uppercase font-mono text-gray-500 font-bold mb-2">Live Announcement Feed</h4>
-            {announcements.slice(0, 1).map(ann => (
-              <div key={ann.id} className="p-3 bg-orange-500/5 border border-orange-500/10 rounded-xl">
-                <span className="text-[8px] uppercase tracking-wider font-mono text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full font-bold">
-                  {ann.type}
-                </span>
-                <h5 className="text-xs font-bold text-gray-200 mt-1.5">{ann.title}</h5>
-                <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{ann.message}</p>
-              </div>
-            ))}
-          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={collegeData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+              <XAxis type="number" stroke="#6b7280" fontSize={10} />
+              <YAxis dataKey="college" type="category" stroke="#6b7280" fontSize={10} width={80} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#11141b', border: '1px solid #374151', borderRadius: '8px' }}
+                itemStyle={{ color: '#e5e7eb' }}
+              />
+              <Bar dataKey="registrations" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
+        {/* Payment Analytics */}
+        <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">Payment Analytics</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">Payment status distribution</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={paymentData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={70}
+                paddingAngle={5}
+                dataKey="count"
+              >
+                {paymentData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#11141b', border: '1px solid #374151', borderRadius: '8px' }}
+                itemStyle={{ color: '#e5e7eb' }}
+              />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Gender Distribution */}
+        <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">Gender Distribution</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">Male/Female participant breakdown</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={genderData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={70}
+                paddingAngle={5}
+                dataKey="count"
+              >
+                {genderData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#11141b', border: '1px solid #374151', borderRadius: '8px' }}
+                itemStyle={{ color: '#e5e7eb' }}
+              />
+              <Legend verticalAlign="bottom" height={36} iconType="circle" />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
+
+      {/* Registration Distribution by Sport Chart */}
+      <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">Registration Breakdown by Sport</h3>
+            <p className="text-[11px] text-gray-500 mt-0.5">Distribution of registration applications across active sports events</p>
+          </div>
+          <span className="text-[10px] font-mono text-orange-500 bg-orange-500/5 px-2.5 py-1 rounded-full border border-orange-500/10">
+            Live Chart
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {distributionEntries.length === 0 ? (
+            <p className="text-xs text-gray-500 italic py-6 text-center font-mono">No active registration distribution yet.</p>
+          ) : (
+            distributionEntries.map(([sportTitle, count]) => {
+              const countNum = Number(count);
+              const percentage = (countNum / maxRegsValue) * 100;
+              return (
+                <div key={sportTitle} className="space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-gray-200">{sportTitle}</span>
+                    <span className="font-mono text-gray-400 font-bold">{countNum} Teams</span>
+                  </div>
+                  <div className="w-full bg-[#181a20] rounded-full h-2.5 overflow-hidden border border-gray-800">
+                    <div 
+                      style={{ width: `${percentage}%` }}
+                      className="bg-gradient-to-r from-orange-500 to-amber-600 h-full rounded-full transition-all duration-1000"
+                    ></div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button 
+          onClick={() => onNavigate("registrations")}
+          className="bg-[#12141a] border border-gray-800/80 hover:border-orange-500/20 rounded-2xl p-4 text-left transition-all group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-bold text-gray-200 group-hover:text-orange-500 transition-colors">Review Pending Registrations</h4>
+              <p className="text-[10px] text-gray-500 mt-0.5">Audit student forms, approve status</p>
+            </div>
+            <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-all" />
+          </div>
+        </button>
+
+        {user.role === "super_admin" && (
+          <button 
+            onClick={() => onNavigate("events")}
+            className="bg-[#12141a] border border-gray-800/80 hover:border-orange-500/20 rounded-2xl p-4 text-left transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-bold text-gray-200 group-hover:text-orange-500 transition-colors">Create New Sport Category</h4>
+                <p className="text-[10px] text-gray-500 mt-0.5">Publish a new individual or team game</p>
+              </div>
+              <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-all" />
+            </div>
+          </button>
+        )}
+
+        <button 
+          onClick={() => onNavigate("schedules")}
+          className="bg-[#12141a] border border-gray-800/80 hover:border-orange-500/20 rounded-2xl p-4 text-left transition-all group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-bold text-gray-200 group-hover:text-orange-500 transition-colors">Modify Match Schedules</h4>
+              <p className="text-[10px] text-gray-500 mt-0.5">Post-match results or update venues</p>
+            </div>
+            <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-orange-500 transition-all" />
+          </div>
+        </button>
+      </div>
+
+      {/* Live Announcement Feed */}
+      {announcements.length > 0 && (
+        <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-4 h-4 text-orange-500" />
+            <h3 className="text-xs uppercase tracking-wider font-bold text-gray-400 font-mono">Live Announcement Feed</h3>
+          </div>
+          {announcements.slice(0, 1).map(ann => (
+            <div key={ann.id} className="p-3 bg-orange-500/5 border border-orange-500/10 rounded-xl">
+              <span className="text-[8px] uppercase tracking-wider font-mono text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full font-bold">
+                {ann.type}
+              </span>
+              <h5 className="text-xs font-bold text-gray-200 mt-1.5">{ann.title}</h5>
+              <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{ann.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Upcoming Matches Quick View panel */}
       <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl p-5">

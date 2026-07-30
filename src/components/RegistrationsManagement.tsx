@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
-import { Registration, SportEvent, TeamMember } from "../types";
+import { Registration, SportEvent, TeamMember, PaymentVerification } from "../types";
 import {
   filterEventsByUserScope,
   getRegistrationEventFilter,
   canVerifyPayments,
 } from "../lib/permissions";
-import { 
-  Users, 
-  Search, 
-  Filter, 
-  Download, 
-  Plus, 
-  X, 
-  Check, 
-  AlertOctagon, 
-  Mail, 
-  Phone, 
-  Building, 
-  CornerDownRight, 
-  Clock, 
-  CheckCircle, 
+import {
+  Users,
+  Search,
+  Filter,
+  Download,
+  Plus,
+  X,
+  Check,
+  AlertOctagon,
+  Mail,
+  Phone,
+  Building,
+  CornerDownRight,
+  Clock,
+  CheckCircle,
   XCircle,
   FileSpreadsheet,
   FileDown,
+  FileText,
   ChevronDown,
   Trash2,
   Lock,
@@ -33,6 +34,8 @@ import {
   BadgeCheck,
   BadgeX
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface RegistrationsManagementProps {
   user: any;
@@ -41,10 +44,14 @@ interface RegistrationsManagementProps {
 export default function RegistrationsManagement({ user }: RegistrationsManagementProps) {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [events, setEvents] = useState<SportEvent[]>([]);
+  const [paymentVerifications, setPaymentVerifications] = useState<PaymentVerification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSportFilter, setSelectedSportFilter] = useState("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("all");
+  const [selectedCollegeFilter, setSelectedCollegeFilter] = useState("all");
+  const [exportGenderFilter, setExportGenderFilter] = useState<"all" | "male" | "female">("all");
+  const [exportType, setExportType] = useState<"all" | "college" | "bank" | "payment_status">("all");
 
   // Selected registration for modal/detail view
   const [selectedReg, setSelectedReg] = useState<Registration | null>(null);
@@ -63,6 +70,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
   const [leadRollNo, setLeadRollNo] = useState("");
   const [leadBranch, setLeadBranch] = useState("CSE");
   const [leadYear, setLeadYear] = useState("3rd Year");
+  const [gender, setGender] = useState<"male" | "female">("male");
   const [manualPaymentStatus, setManualPaymentStatus] = useState<"pending_payment" | "payment_verified" | "ims_student">("pending_payment");
 
   // Dynamic team members
@@ -81,6 +89,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       const evs = await dbService.getEvents();
       const authorizedEventIds = getRegistrationEventFilter(user, evs);
       const regs = await dbService.getRegistrations(authorizedEventIds);
+      const verifications = await dbService.getPaymentVerifications();
 
       const scopedEvents = filterEventsByUserScope(user, evs);
       if (user.role === "coordinator" || user.role === "admin") {
@@ -91,6 +100,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
         setEvents(evs);
         setRegistrations(regs);
       }
+      setPaymentVerifications(verifications);
     } catch (err) {
       console.error(err);
     } finally {
@@ -120,6 +130,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       }
     }
   };
+
 
   const handleMemberChange = (index: number, field: keyof TeamMember, value: string) => {
     const updated = [...members];
@@ -159,6 +170,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       leadRollNo,
       leadBranch,
       leadYear,
+      gender,
       teamName: teamName.trim() || undefined,
       members: event.type === "team" ? activeMembers : undefined,
       duplicateCheckHash: `${selectedEventId}_${leadRollNo}`,
@@ -202,7 +214,11 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
   };
 
   const handleConfirmStatus = async () => {
-    if (!selectedReg || !targetStatus) return;
+    if (!selectedReg || !targetStatus || !selectedReg.id) {
+      console.error("Invalid registration data:", { selectedReg, targetStatus });
+      alert("Invalid registration selected");
+      return;
+    }
 
     try {
       const updated = await dbService.updateRegistrationStatus(
@@ -279,84 +295,204 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       return;
     }
 
-    let fileContent = "";
-    const filename = `Chakravyuh_Registrations_${Date.now()}.${format === "csv" ? "csv" : "xls"}`;
-
     // Header columns
     const headers = [
-      "ID", "Sport Title", "Sport Type", "Status", "Registered At", 
-      "Team Name", "Captain Name", "Captain Email", "Captain Phone", 
-      "Captain RollNo", "Captain College", "Captain Branch", "Captain Year", "Total Team Members",
+      "ID", "Sport Title", "Sport Type", "Status", "Registered At",
+      "Team Name", "Captain Name", "Captain Email", "Captain Phone",
+      "Captain RollNo", "Captain College", "Captain Branch", "Captain Year", "Gender", "Total Team Members",
       "UTR Number", "Payment Status"
     ];
 
-    if (format === "csv") {
-      fileContent += headers.join(",") + "\n";
-      filteredRegistrations.forEach(r => {
-        const row = [
-          r.id,
-          `"${r.eventTitle.replace(/"/g, '""')}"`,
-          r.sportType,
-          r.status,
-          r.registeredAt,
-          r.teamName ? `"${r.teamName.replace(/"/g, '""')}"` : "",
-          `"${r.leadName.replace(/"/g, '""')}"`,
-          r.leadEmail,
-          r.leadPhone,
-          r.leadRollNo,
-          `"${r.leadCollege.replace(/"/g, '""')}"`,
-          r.leadBranch,
-          r.leadYear,
-          r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1),
-          r.utrNumber ? `"${r.utrNumber.replace(/"/g, '""')}"` : "",
-          r.paymentStatus || "unpaid"
-        ];
-        fileContent += row.join(",") + "\n";
-      });
-    } else {
-      // Basic Tab-separated XML values for XLS
-      fileContent += "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'>";
-      fileContent += "<head><meta charset='utf-8'></head><body><table><thead><tr>";
-      headers.forEach(h => { fileContent += `<th>${h}</th>`; });
-      fileContent += "</tr></thead><tbody>";
-      filteredRegistrations.forEach(r => {
-        fileContent += "<tr>";
-        fileContent += `<td>${r.id}</td>`;
-        fileContent += `<td>${r.eventTitle}</td>`;
-        fileContent += `<td>${r.sportType}</td>`;
-        fileContent += `<td>${r.status}</td>`;
-        fileContent += `<td>${r.registeredAt}</td>`;
-        fileContent += `<td>${r.teamName || ""}</td>`;
-        fileContent += `<td>${r.leadName}</td>`;
-        fileContent += `<td>${r.leadEmail}</td>`;
-        fileContent += `<td>${r.leadPhone}</td>`;
-        fileContent += `<td>${r.leadRollNo}</td>`;
-        fileContent += `<td>${r.leadCollege}</td>`;
-        fileContent += `<td>${r.leadBranch}</td>`;
-        fileContent += `<td>${r.leadYear}</td>`;
-        fileContent += `<td>${r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1)}</td>`;
-        fileContent += `<td>${r.utrNumber || ""}</td>`;
-        fileContent += `<td>${r.paymentStatus || "unpaid"}</td>`;
-        fileContent += "</tr>";
-      });
-      fileContent += "</tbody></table></body></html>";
+    // Separate registrations by gender
+    const maleRegistrations = filteredRegistrations.filter(r => r.gender === 'male');
+    const femaleRegistrations = filteredRegistrations.filter(r => r.gender === 'female');
+
+    // Function to generate file content
+    const generateFileContent = (data: any[]) => {
+      let fileContent = "";
+
+      if (format === "csv") {
+        fileContent += headers.join(",") + "\n";
+        data.forEach(r => {
+          const row = [
+            r.id,
+            `"${r.eventTitle.replace(/"/g, '""')}"`,
+            r.sportType,
+            r.status,
+            r.registeredAt,
+            r.teamName ? `"${r.teamName.replace(/"/g, '""')}"` : "",
+            `"${r.leadName.replace(/"/g, '""')}"`,
+            r.leadEmail,
+            r.leadPhone,
+            r.leadRollNo,
+            `"${r.leadCollege.replace(/"/g, '""')}"`,
+            r.leadBranch,
+            r.leadYear,
+            r.gender || "unknown",
+            r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1),
+            r.utrNumber ? `"${r.utrNumber.replace(/"/g, '""')}"` : "",
+            r.paymentStatus || "unpaid"
+          ];
+          fileContent += row.join(",") + "\n";
+        });
+      } else {
+        // Basic Tab-separated XML values for XLS
+        fileContent += "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'>";
+        fileContent += "<head><meta charset='utf-8'></head><body><table><thead><tr>";
+        headers.forEach(h => { fileContent += `<th>${h}</th>`; });
+        fileContent += "</tr></thead><tbody>";
+        data.forEach(r => {
+          fileContent += "<tr>";
+          fileContent += `<td>${r.id}</td>`;
+          fileContent += `<td>${r.eventTitle}</td>`;
+          fileContent += `<td>${r.sportType}</td>`;
+          fileContent += `<td>${r.status}</td>`;
+          fileContent += `<td>${r.registeredAt}</td>`;
+          fileContent += `<td>${r.teamName || ""}</td>`;
+          fileContent += `<td>${r.leadName}</td>`;
+          fileContent += `<td>${r.leadEmail}</td>`;
+          fileContent += `<td>${r.leadPhone}</td>`;
+          fileContent += `<td>${r.leadRollNo}</td>`;
+          fileContent += `<td>${r.leadCollege}</td>`;
+          fileContent += `<td>${r.leadBranch}</td>`;
+          fileContent += `<td>${r.leadYear}</td>`;
+          fileContent += `<td>${r.gender || "unknown"}</td>`;
+          fileContent += `<td>${r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1)}</td>`;
+          fileContent += `<td>${r.utrNumber || ""}</td>`;
+          fileContent += `<td>${r.paymentStatus || "unpaid"}</td>`;
+          fileContent += "</tr>";
+        });
+        fileContent += "</tbody></table></body></html>";
+      }
+      
+      return fileContent;
+    };
+
+    // Function to download file
+    const downloadFile = (content: string, filename: string) => {
+      const blob = new Blob([content], { type: format === "csv" ? "text/csv;charset=utf-8;" : "application/vnd.ms-excel" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    // Download separate files for male and female
+    const timestamp = Date.now();
+    const extension = format === "csv" ? "csv" : "xls";
+    
+    if (maleRegistrations.length > 0) {
+      const maleContent = generateFileContent(maleRegistrations);
+      downloadFile(maleContent, `Chakravyuh_Male_Registrations_${timestamp}.${extension}`);
+    }
+    
+    if (femaleRegistrations.length > 0) {
+      const femaleContent = generateFileContent(femaleRegistrations);
+      downloadFile(femaleContent, `Chakravyuh_Female_Registrations_${timestamp}.${extension}`);
+    }
+    
+    if (maleRegistrations.length === 0 && femaleRegistrations.length === 0) {
+      alert("No registration records with gender information available to export.");
+    }
+  };
+
+  // Payment Statement Export (Separate Excel for payment details)
+  const handlePaymentExport = (format: "csv" | "excel") => {
+    const paymentRegistrations = filteredRegistrations.filter(r =>
+      r.paymentStatus && r.paymentStatus !== 'pending_payment'
+    );
+
+    if (paymentRegistrations.length === 0) {
+      alert("No payment records available to export.");
+      return;
     }
 
-    const blob = new Blob([fileContent], { type: format === "csv" ? "text/csv;charset=utf-8;" : "application/vnd.ms-excel" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Payment statement headers
+    const paymentHeaders = [
+      "Transaction ID", "Payer Name", "Payer Mobile", "Event Title", "Sport Type",
+      "Team Name", "Captain Name", "Captain College", "Captain RollNo",
+      "Amount Paid", "Payment Status", "UTR Number", "Payment Submitted At", "Payment Verified At"
+    ];
+
+    const generatePaymentContent = (data: any[]) => {
+      let fileContent = "";
+
+      if (format === "csv") {
+        fileContent += paymentHeaders.join(",") + "\n";
+        data.forEach(r => {
+          const row = [
+            r.id,
+            `"${r.leadName.replace(/"/g, '""')}"`,
+            r.leadPhone,
+            `"${r.eventTitle.replace(/"/g, '""')}"`,
+            r.sportType,
+            r.teamName ? `"${r.teamName.replace(/"/g, '""')}"` : "",
+            `"${r.leadName.replace(/"/g, '""')}"`,
+            `"${r.leadCollege.replace(/"/g, '""')}"`,
+            r.leadRollNo,
+            r.sportType === "individual" ? "Individual Fee" : `Team Fee (${(r.members ? r.members.length : 0) + 1} players)`,
+            r.paymentStatus || "unknown",
+            r.utrNumber ? `"${r.utrNumber.replace(/"/g, '""')}"` : "N/A",
+            r.paymentSubmittedAt || "N/A",
+            r.paymentVerifiedAt || "N/A"
+          ];
+          fileContent += row.join(",") + "\n";
+        });
+      } else {
+        fileContent += "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'>";
+        fileContent += "<head><meta charset='utf-8'><style>table{border-collapse:collapse;}th,td{border:1px solid #000;padding:8px;}</style></head><body><table><thead><tr>";
+        paymentHeaders.forEach(h => { fileContent += `<th>${h}</th>`; });
+        fileContent += "</tr></thead><tbody>";
+        data.forEach(r => {
+          fileContent += "<tr>";
+          fileContent += `<td>${r.id}</td>`;
+          fileContent += `<td>${r.leadName}</td>`;
+          fileContent += `<td>${r.leadPhone}</td>`;
+          fileContent += `<td>${r.eventTitle}</td>`;
+          fileContent += `<td>${r.sportType}</td>`;
+          fileContent += `<td>${r.teamName || ""}</td>`;
+          fileContent += `<td>${r.leadName}</td>`;
+          fileContent += `<td>${r.leadCollege}</td>`;
+          fileContent += `<td>${r.leadRollNo}</td>`;
+          fileContent += `<td>${r.sportType === "individual" ? "Individual Fee" : `Team Fee (${(r.members ? r.members.length : 0) + 1} players)`}</td>`;
+          fileContent += `<td>${r.paymentStatus || "unknown"}</td>`;
+          fileContent += `<td>${r.utrNumber || "N/A"}</td>`;
+          fileContent += `<td>${r.paymentSubmittedAt || "N/A"}</td>`;
+          fileContent += `<td>${r.paymentVerifiedAt || "N/A"}</td>`;
+          fileContent += "</tr>";
+        });
+        fileContent += "</tbody></table></body></html>";
+      }
+
+      return fileContent;
+    };
+
+    const downloadFile = (content: string, filename: string) => {
+      const blob = new Blob([content], { type: format === "csv" ? "text/csv;charset=utf-8;" : "application/vnd.ms-excel" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    const timestamp = Date.now();
+    const extension = format === "csv" ? "csv" : "xls";
+    const content = generatePaymentContent(paymentRegistrations);
+    downloadFile(content, `Chakravyuh_Payment_Statement_${timestamp}.${extension}`);
   };
 
   // Live filter query processing
   const filteredRegistrations = registrations.filter(reg => {
     const query = searchQuery.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       reg.leadName.toLowerCase().includes(query) ||
       reg.leadRollNo.includes(query) ||
       reg.leadEmail.toLowerCase().includes(query) ||
@@ -368,6 +504,331 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
 
     return matchesSearch && matchesSport && matchesStatus;
   });
+
+  // Get unique colleges for filter dropdown
+  const uniqueColleges = Array.from(new Set(filteredRegistrations.map(r => r.leadCollege))).filter(Boolean).sort();
+
+  // Advanced Export Functions
+  const handleAdvancedExport = (format: "excel" | "pdf") => {
+    let exportData: any[] = [];
+    let filename = "";
+    let headers: string[] = [];
+    let fieldMapping: Record<string, string> = {};
+
+    // Apply gender filter
+    let dataToExport = filteredRegistrations;
+    if (exportGenderFilter !== "all") {
+      dataToExport = filteredRegistrations.filter(r => r.gender === exportGenderFilter);
+    }
+
+    switch (exportType) {
+      case "college":
+        if (selectedCollegeFilter === "all") {
+          alert("Please select a college for college-wise export");
+          return;
+        }
+        dataToExport = dataToExport.filter(r => r.leadCollege === selectedCollegeFilter);
+        filename = `chakravyuh_${selectedCollegeFilter.replace(/\s+/g, '_')}_registrations`;
+        headers = [
+          "Event Title", "Sport Type", "Team Name", "Lead Name", "Lead College",
+          "Lead RollNo", "Lead Branch", "Lead Year", "Lead Mobile",
+          "Lead Email", "Payment Status", "Registration Status", "Registered At"
+        ];
+        fieldMapping = {
+          "Event Title": "eventTitle",
+          "Sport Type": "sportType",
+          "Team Name": "teamName",
+          "Lead Name": "leadName",
+          "Lead College": "leadCollege",
+          "Lead RollNo": "leadRollNo",
+          "Lead Branch": "leadBranch",
+          "Lead Year": "leadYear",
+          "Lead Mobile": "leadPhone",
+          "Lead Email": "leadEmail",
+          "Payment Status": "paymentStatus",
+          "Registration Status": "status",
+          "Registered At": "registeredAt"
+        };
+        break;
+
+      case "bank":
+        // Bank Statement - all payment attempts
+        const paymentRegs = dataToExport.filter(r =>
+          r.paymentStatus && r.paymentStatus !== 'pending_payment'
+        );
+        exportData = paymentRegs.map(r => {
+          const verification = paymentVerifications.find(v => v.registrationId === r.id);
+          return {
+            transactionId: verification?.transactionId || r.utrNumber || "N/A",
+            payerName: verification?.payerName || r.leadName,
+            payerMobile: verification?.payerMobile || r.leadPhone,
+            name: r.leadName,
+            rollNo: r.leadRollNo,
+            college: r.leadCollege,
+            mobile: r.leadPhone,
+            amount: verification?.amount || "N/A",
+            paymentStatus: r.paymentStatus,
+            utr: r.utrNumber || verification?.transactionId || "N/A",
+            submittedAt: verification?.submittedAt || "N/A",
+            verifiedAt: verification?.verifiedAt || "N/A"
+          };
+        });
+        filename = "chakravyuh_bank_statement";
+        headers = [
+          "Transaction ID", "Payer Name", "Payer Mobile", "Student Name", "Roll No",
+          "College", "Student Mobile", "Amount Paid", "Payment Status", "UTR Number",
+          "Submitted At", "Verified At"
+        ];
+        fieldMapping = {
+          "Transaction ID": "transactionId",
+          "Payer Name": "payerName",
+          "Payer Mobile": "payerMobile",
+          "Student Name": "name",
+          "Roll No": "rollNo",
+          "College": "college",
+          "Student Mobile": "mobile",
+          "Amount Paid": "amount",
+          "Payment Status": "paymentStatus",
+          "UTR Number": "utr",
+          "Submitted At": "submittedAt",
+          "Verified At": "verifiedAt"
+        };
+        break;
+
+      case "payment_status":
+        // All payment statuses mixed
+        exportData = dataToExport.map(r => ({
+          eventTitle: r.eventTitle,
+          sportType: r.sportType,
+          teamName: r.teamName || "Individual",
+          leadName: r.leadName,
+          leadCollege: r.leadCollege,
+          leadRollNo: r.leadRollNo,
+          leadPhone: r.leadPhone,
+          paymentStatus: r.paymentStatus || "pending_payment",
+          utrNumber: r.utrNumber || "N/A",
+          registrationStatus: r.status,
+          registeredAt: r.registeredAt
+        }));
+        filename = "chakravyuh_payment_status_mix";
+        headers = [
+          "Event Title", "Sport Type", "Team Name", "Lead Name", "Lead College",
+          "Lead RollNo", "Lead Mobile", "Payment Status", "UTR Number",
+          "Registration Status", "Registered At"
+        ];
+        fieldMapping = {
+          "Event Title": "eventTitle",
+          "Sport Type": "sportType",
+          "Team Name": "teamName",
+          "Lead Name": "leadName",
+          "Lead College": "leadCollege",
+          "Lead RollNo": "leadRollNo",
+          "Lead Mobile": "leadPhone",
+          "Payment Status": "paymentStatus",
+          "UTR Number": "utrNumber",
+          "Registration Status": "registrationStatus",
+          "Registered At": "registeredAt"
+        };
+        break;
+
+      case "all":
+      default:
+        // All records
+        exportData = dataToExport.map(r => ({
+          eventTitle: r.eventTitle,
+          sportType: r.sportType,
+          teamName: r.teamName || "Individual",
+          leadName: r.leadName,
+          leadCollege: r.leadCollege,
+          leadRollNo: r.leadRollNo,
+          leadBranch: r.leadBranch,
+          leadYear: r.leadYear,
+          leadPhone: r.leadPhone,
+          leadEmail: r.leadEmail,
+          paymentStatus: r.paymentStatus || "pending_payment",
+          registrationStatus: r.status,
+          registeredAt: r.registeredAt
+        }));
+        filename = "chakravyuh_all_registrations";
+        headers = [
+          "Event Title", "Sport Type", "Team Name", "Lead Name", "Lead College",
+          "Lead RollNo", "Lead Branch", "Lead Year", "Lead Mobile",
+          "Lead Email", "Payment Status", "Registration Status", "Registered At"
+        ];
+        fieldMapping = {
+          "Event Title": "eventTitle",
+          "Sport Type": "sportType",
+          "Team Name": "teamName",
+          "Lead Name": "leadName",
+          "Lead College": "leadCollege",
+          "Lead RollNo": "leadRollNo",
+          "Lead Branch": "leadBranch",
+          "Lead Year": "leadYear",
+          "Lead Mobile": "leadPhone",
+          "Lead Email": "leadEmail",
+          "Payment Status": "paymentStatus",
+          "Registration Status": "registrationStatus",
+          "Registered At": "registeredAt"
+        };
+        break;
+    }
+
+    if (exportData.length === 0) {
+      alert("No records available to export");
+      return;
+    }
+
+    if (format === "excel") {
+      // Generate Excel/CSV with proper field mapping
+      const csvContent = [
+        headers.join(","),
+        ...exportData.map(row => headers.map(header => {
+          const field = fieldMapping[header];
+          const value = field ? (row[field] || "") : "";
+          return `"${value}"`;
+        }).join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `${filename}.csv`;
+      link.click();
+    } else if (format === "pdf") {
+      // Generate PDF using jsPDF
+      const doc = new jsPDF();
+      const tableData = exportData.map(row =>
+        headers.map(header => {
+          const field = fieldMapping[header];
+          return field ? (row[field] || "") : "";
+        })
+      );
+
+      doc.setFontSize(16);
+      doc.text("Chakravyuh 2K26 - Registration Report", 14, 22);
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+
+      autoTable(doc, {
+        head: [headers],
+        body: tableData,
+        startY: 40,
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [249, 115, 22], // Orange color
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+      });
+
+      doc.save(`${filename}.pdf`);
+    }
+  };
+
+  // Payment Verification History Export
+  const handlePaymentVerificationExport = (format: "excel" | "pdf") => {
+    const processedVerifications = paymentVerifications.filter(v => v.status !== 'pending');
+
+    if (processedVerifications.length === 0) {
+      alert("No processed payment verifications to export");
+      return;
+    }
+
+    const exportData = processedVerifications.map(v => {
+      const registration = registrations.find(r => r.id === v.registrationId);
+      return {
+        transactionId: v.transactionId,
+        payerName: v.payerName,
+        payerMobile: v.payerMobile,
+        amount: v.amount,
+        status: v.status,
+        verifiedBy: v.verifiedBy || "N/A",
+        verifiedAt: v.verifiedAt || "N/A",
+        remarks: v.remarks || "N/A",
+        eventTitle: registration?.eventTitle || "N/A",
+        studentName: registration?.leadName || "N/A",
+        studentRollNo: registration?.leadRollNo || "N/A",
+        studentCollege: registration?.leadCollege || "N/A"
+      };
+    });
+
+    const headers = [
+      "Transaction ID", "Payer Name", "Payer Mobile", "Amount", "Status",
+      "Verified By", "Verified At", "Remarks", "Event Title", "Student Name",
+      "Student Roll No", "Student College"
+    ];
+
+    const fieldMapping = {
+      "Transaction ID": "transactionId",
+      "Payer Name": "payerName",
+      "Payer Mobile": "payerMobile",
+      "Amount": "amount",
+      "Status": "status",
+      "Verified By": "verifiedBy",
+      "Verified At": "verifiedAt",
+      "Remarks": "remarks",
+      "Event Title": "eventTitle",
+      "Student Name": "studentName",
+      "Student Roll No": "studentRollNo",
+      "Student College": "studentCollege"
+    };
+
+    if (format === "excel") {
+      const csvContent = [
+        headers.join(","),
+        ...exportData.map(row => headers.map(header => {
+          const field = fieldMapping[header];
+          const value = field ? (row[field] || "") : "";
+          return `"${value}"`;
+        }).join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `chakravyuh_payment_verification_history.csv`;
+      link.click();
+    } else if (format === "pdf") {
+      const doc = new jsPDF();
+      const tableData = exportData.map(row =>
+        headers.map(header => {
+          const field = fieldMapping[header];
+          return field ? (row[field] || "") : "";
+        })
+      );
+
+      doc.setFontSize(16);
+      doc.text("Chakravyuh 2K26 - Payment Verification History", 14, 22);
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+
+      autoTable(doc, {
+        head: [headers],
+        body: tableData,
+        startY: 40,
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [249, 115, 22],
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245],
+        },
+      });
+
+      doc.save(`chakravyuh_payment_verification_history.pdf`);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -540,6 +1001,18 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                 </div>
 
                 <div className="space-y-1">
+                  <label className="block text-[10px] text-gray-500 font-mono">Gender</label>
+                  <select
+                    className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 rounded-lg text-xs text-white"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value as "male" | "female")}
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
                   <label className="block text-[10px] text-gray-500 font-mono">Payment Status</label>
                   <select
                     className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 rounded-lg text-xs text-white"
@@ -670,29 +1143,229 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
           </div>
 
           {/* Export Actions */}
-          <div className="flex items-center gap-1 bg-[#0d0f12] border border-gray-800 rounded-xl overflow-hidden p-0.5">
-            <button
-              onClick={() => handleExport("csv")}
-              title="Download CSV report"
-              className="px-3 py-1.5 hover:bg-orange-500/10 text-gray-400 hover:text-orange-400 transition-all text-xs font-semibold font-mono flex items-center gap-1"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>CSV</span>
-            </button>
-            <div className="w-[1px] h-4 bg-gray-800"></div>
-            <button
-              onClick={() => handleExport("excel")}
-              title="Download Excel report"
-              className="px-3 py-1.5 hover:bg-orange-500/10 text-gray-400 hover:text-orange-400 transition-all text-xs font-semibold font-mono flex items-center gap-1"
-            >
-              <FileDown className="w-3.5 h-3.5" />
-              <span>Excel</span>
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-[#0d0f12] border border-gray-800 rounded-xl overflow-hidden p-0.5">
+              <button
+                onClick={() => handleExport("csv")}
+                title="Download CSV report"
+                className="px-3 py-1.5 hover:bg-orange-500/10 text-gray-400 hover:text-orange-400 transition-all text-xs font-semibold font-mono flex items-center gap-1"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>CSV</span>
+              </button>
+              <div className="w-[1px] h-4 bg-gray-800"></div>
+              <button
+                onClick={() => handleExport("excel")}
+                title="Download Excel report"
+                className="px-3 py-1.5 hover:bg-orange-500/10 text-gray-400 hover:text-orange-400 transition-all text-xs font-semibold font-mono flex items-center gap-1"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Excel</span>
+              </button>
+              <div className="w-[1px] h-4 bg-gray-800"></div>
+              <button
+                onClick={() => handlePaymentExport("excel")}
+                title="Download Payment Statement"
+                className="px-3 py-1.5 hover:bg-green-500/10 text-gray-400 hover:text-green-400 transition-all text-xs font-semibold font-mono flex items-center gap-1"
+              >
+                <IndianRupee className="w-3.5 h-3.5" />
+                <span>Payment</span>
+              </button>
+            </div>
+
+            {/* Advanced Export */}
+            <div className="flex items-center gap-1 bg-[#0d0f12] border border-gray-800 rounded-xl overflow-hidden p-0.5">
+              <select
+                value={exportType}
+                onChange={(e) => setExportType(e.target.value as any)}
+                className="px-2 py-1.5 bg-[#0d0f12] border border-gray-800 text-gray-400 text-xs font-mono outline-none"
+              >
+                <option value="all">All Records</option>
+                <option value="college">College-wise</option>
+                <option value="bank">Bank Statement</option>
+                <option value="payment_status">Payment Status Mix</option>
+              </select>
+              <select
+                value={exportGenderFilter}
+                onChange={(e) => setExportGenderFilter(e.target.value as any)}
+                className="px-2 py-1.5 bg-[#0d0f12] border border-gray-800 text-gray-400 text-xs font-mono outline-none"
+              >
+                <option value="all">All Genders</option>
+                <option value="male">Male Only</option>
+                <option value="female">Female Only</option>
+              </select>
+              {exportType === "college" && (
+                <select
+                  value={selectedCollegeFilter}
+                  onChange={(e) => setSelectedCollegeFilter(e.target.value)}
+                  className="px-2 py-1.5 bg-[#0d0f12] border border-gray-800 text-gray-400 text-xs font-mono outline-none"
+                >
+                  <option value="all">Select College</option>
+                  {uniqueColleges.map(college => (
+                    <option key={college} value={college}>{college}</option>
+                  ))}
+                </select>
+              )}
+              <div className="w-[1px] h-4 bg-gray-800"></div>
+              <button
+                onClick={() => handleAdvancedExport("excel")}
+                title="Download Excel/CSV"
+                className="px-3 py-1.5 hover:bg-blue-500/10 text-gray-400 hover:text-blue-400 transition-all text-xs font-semibold font-mono flex items-center gap-1"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Excel</span>
+              </button>
+              <button
+                onClick={() => handleAdvancedExport("pdf")}
+                title="Download PDF"
+                className="px-3 py-1.5 hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-all text-xs font-semibold font-mono flex items-center gap-1"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>PDF</span>
+              </button>
+            </div>
           </div>
 
         </div>
 
       </div>
+
+      {/* Payment Verification Section */}
+      {canVerifyPayments(user) && (
+        <div className="bg-[#12141a] border border-orange-500/30 rounded-2xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-orange-400 flex items-center gap-2">
+              <IndianRupee className="w-4 h-4" />
+              Payment Verifications
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePaymentVerificationExport("excel")}
+                className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold rounded-lg transition-colors"
+              >
+                Export History
+              </button>
+            </div>
+          </div>
+
+          {/* Pending Verifications */}
+          {(() => {
+            const pendingVerifications = paymentVerifications.filter(v => v.status === 'pending');
+            console.log("Payment verification filter check:", { total: paymentVerifications.length, pending: pendingVerifications.length });
+            return pendingVerifications.length > 0;
+          })() && (
+            <>
+              <h4 className="text-xs font-bold text-yellow-400 mb-2">Pending ({paymentVerifications.filter(v => v.status === 'pending').length})</h4>
+              <div className="space-y-2 mb-4">
+                {paymentVerifications.filter(v => v.status === 'pending').map((verification) => {
+                  const registration = registrations.find(r => r.id === verification.registrationId);
+                  return (
+                    <div key={verification.id} className="bg-[#0d0f12] border border-yellow-500/30 rounded-xl p-3 flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-gray-200">{verification.payerName}</span>
+                          <span className="text-[10px] text-gray-500 font-mono">{verification.payerMobile}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] text-gray-400 font-mono">
+                          <span>TXN: {verification.transactionId}</span>
+                          <span>₹{verification.amount}</span>
+                          {registration && <span className="text-orange-400">{registration.eventTitle}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            console.log("Approve button clicked for verification:", verification.id);
+                            const remarks = prompt("Enter remarks (optional):");
+                            console.log("Remarks entered:", remarks);
+                            console.log("Calling verifyPayment with:", verification.id, 'approved', user?.displayName || user?.email || "Admin", remarks);
+                            try {
+                              await dbService.verifyPayment(verification.id, 'approved', user?.displayName || user?.email || "Admin", remarks || undefined);
+                              console.log("verifyPayment completed, calling loadData");
+                              setTimeout(() => loadData(), 500);
+                            } catch (error) {
+                              console.error("Error in approve button:", error);
+                              alert("Error approving payment: " + (error as Error).message);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg transition-colors"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={async () => {
+                            console.log("Reject button clicked for verification:", verification.id);
+                            const remarks = prompt("Enter rejection reason:");
+                            console.log("Remarks entered:", remarks);
+                            if (remarks) {
+                              console.log("Calling verifyPayment with:", verification.id, 'rejected', user?.displayName || user?.email || "Admin", remarks);
+                              try {
+                                await dbService.verifyPayment(verification.id, 'rejected', user?.displayName || user?.email || "Admin", remarks);
+                                console.log("verifyPayment completed, calling loadData");
+                                setTimeout(() => loadData(), 500);
+                              } catch (error) {
+                                console.error("Error in reject button:", error);
+                                alert("Error rejecting payment: " + (error as Error).message);
+                              }
+                            } else {
+                              console.log("Reject cancelled - no remarks entered");
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Processed Verifications History */}
+          {(() => {
+            const processedVerifications = paymentVerifications.filter(v => v.status !== 'pending');
+            return processedVerifications.length > 0;
+          })() && (
+            <>
+              <h4 className="text-xs font-bold text-gray-400 mb-2">History ({paymentVerifications.filter(v => v.status !== 'pending').length})</h4>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {paymentVerifications.filter(v => v.status !== 'pending').map((verification) => {
+                  const registration = registrations.find(r => r.id === verification.registrationId);
+                  const isApproved = verification.status === 'approved';
+                  return (
+                    <div key={verification.id} className={`bg-[#0d0f12] border ${isApproved ? 'border-green-500/30' : 'border-red-500/30'} rounded-xl p-3 flex items-center justify-between`}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-gray-200">{verification.payerName}</span>
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${isApproved ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {verification.status.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] text-gray-400 font-mono">
+                          <span>TXN: {verification.transactionId}</span>
+                          <span>₹{verification.amount}</span>
+                          {verification.verifiedBy && <span>By: {verification.verifiedBy}</span>}
+                        </div>
+                        {verification.remarks && (
+                          <div className="text-[10px] text-gray-500 mt-1">Remarks: {verification.remarks}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {paymentVerifications.filter(v => v.status === 'pending').length === 0 && paymentVerifications.filter(v => v.status !== 'pending').length === 0 && (
+            <div className="text-center py-4 text-gray-500 text-xs">
+              No payment verifications yet
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Registrations List Grid/Table layout */}
       <div className="bg-[#12141a] border border-gray-800/80 rounded-2xl overflow-hidden">
