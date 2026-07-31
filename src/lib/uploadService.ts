@@ -2,10 +2,6 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, isFirebaseConfigured } from "./firebase";
 import imageCompression from "browser-image-compression";
 
-const cloudName = (import.meta as any).env?.VITE_CLOUDINARY_CLOUD_NAME || "";
-const uploadPreset = (import.meta as any).env?.VITE_CLOUDINARY_UPLOAD_PRESET || "";
-const isCloudinaryConfigured = Boolean(cloudName && uploadPreset);
-
 export async function uploadMedia(
   file: File,
   options?: { maxImageSizeMB?: number; maxImageWidthOrHeight?: number }
@@ -32,58 +28,25 @@ export async function uploadMedia(
     }
   }
 
-  // 2. Try Firebase Storage if configured (with a 4-second timeout to prevent hanging)
+  // 2. Try Firebase Storage if configured (with a 10-second timeout to prevent hanging)
   if (isFirebaseConfigured && storage) {
     try {
       const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
       
       const uploadPromise = uploadBytes(storageRef, compressedFile);
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 4000)
+        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 10000)
       );
 
       const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
       const downloadURL = await getDownloadURL(snapshot.ref);
       return downloadURL;
     } catch (err) {
-      console.warn("Firebase Storage upload failed or timed out, trying Cloudinary:", err);
+      console.warn("Firebase Storage upload failed or timed out, falling back to Base64:", err);
     }
   }
 
-  // 3. Try Cloudinary when explicitly configured
-  if (isCloudinaryConfigured) {
-    try {
-      const formData = new FormData();
-      formData.append("file", compressedFile);
-      formData.append("upload_preset", uploadPreset);
-
-      const resourceType = file.type.startsWith("video") ? "video" : "image";
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
-        {
-          method: "POST",
-          body: formData,
-          signal: controller.signal
-        }
-      );
-      clearTimeout(timeoutId);
-
-      const data = await response.json();
-      if (response.ok && data.secure_url) {
-        return data.secure_url;
-      } else {
-        console.warn("Cloudinary upload rejected:", data);
-      }
-    } catch (cloudinaryErr) {
-      console.warn("Cloudinary upload failed, falling back to Base64:", cloudinaryErr);
-    }
-  }
-
-  // 4. Fallback: Base64 data URL
+  // 3. Fallback: Base64 data URL (for demo mode or when Firebase is not configured)
   let finalFile = compressedFile;
   if (file.type.startsWith("image/") && finalFile.size > 0.5 * 1024 * 1024) {
     try {
@@ -117,8 +80,6 @@ export const isVideo = (url: string) => {
     url.toLowerCase().endsWith(".webm") ||
     url.toLowerCase().endsWith(".ogg") ||
     url.toLowerCase().endsWith(".mov") ||
-    url.toLowerCase().includes("/video/upload/") ||
-    (url.includes("firebasestorage.googleapis.com") && url.toLowerCase().includes(".mp4")) ||
     url.toLowerCase().includes("video")
   );
 };
