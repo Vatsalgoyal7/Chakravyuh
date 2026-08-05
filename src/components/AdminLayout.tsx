@@ -11,21 +11,19 @@ import {
   Menu, 
   X, 
   ShieldCheck, 
-  User, 
+  UserCheck,
   WifiOff, 
   Database,
-  PhoneCall,
   Eye,
-  QrCode,
-  UserCheck,
+  Info,
   HelpCircle,
-  ScrollText,
   IndianRupee,
-  Archive
+  ScrollText,
+  Archive,
+  ToggleRight
 } from "lucide-react";
 import { AdminUser } from "../types";
 import { isFirebaseConfigured } from "../lib/firebase";
-import { canAccessTab, roleDisplayLabel, resolveAdminScope } from "../lib/permissions";
 
 interface AdminLayoutProps {
   user: AdminUser;
@@ -47,45 +45,46 @@ export default function AdminLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["super_admin", "admin", "coordinator"] },
-    { id: "revenue", label: "Revenue Monitor", icon: IndianRupee, roles: ["super_admin"] },
-    { id: "events", label: "Events Manager", icon: Trophy, roles: ["super_admin"] },
-    { id: "admins", label: "Admins Manager", icon: ShieldCheck, roles: ["super_admin"] },
-    { id: "coordinators", label: "Coordinators Manager", icon: UserCheck, roles: ["super_admin", "admin"] },
-    { id: "registrations", label: "Registrations Control", icon: Users, roles: ["super_admin", "admin", "coordinator"] },
-    { id: "schedules", label: "Match Schedules", icon: CalendarDays, roles: ["super_admin", "admin", "coordinator"] },
-    { id: "notifications", label: "Announcements", icon: Megaphone, roles: ["super_admin", "admin", "coordinator"] },
-    { id: "gallery", label: "Gallery Upload", icon: ImageIcon, roles: ["super_admin", "admin"] },
-    { id: "faq_management", label: "FAQ Editor", icon: HelpCircle, roles: ["super_admin", "admin"] },
-    { id: "about", label: "About Section", icon: User, roles: ["super_admin"] },
-    { id: "rules_contacts", label: "Rules & Directory", icon: BookOpen, roles: ["super_admin"] },
-    { id: "payment_settings", label: "Payment Settings", icon: QrCode, roles: ["super_admin"] },
-    { id: "activity_logs", label: "Audit Logs", icon: ScrollText, roles: ["super_admin"] },
-    { id: "backup_reset", label: "Backup & Reset", icon: Archive, roles: ["super_admin"] },
+    { id: "dashboard",        label: "Dashboard",              icon: LayoutDashboard, roles: ["super_admin", "admin", "coordinator"] },
+    { id: "revenue",          label: "Revenue Monitor",        icon: IndianRupee,     roles: ["super_admin"] },
+    { id: "events",           label: "Events Manager",         icon: Trophy,          roles: ["super_admin"] },
+    { id: "admins",           label: "Admins Manager",         icon: UserCheck,       roles: ["super_admin"] },
+    { id: "coordinators",     label: "Coordinators Manager",   icon: ShieldCheck,     roles: ["super_admin", "admin"] },
+    { id: "registrations",    label: "Registrations Control",  icon: Users,           roles: ["super_admin", "admin", "coordinator"] },
+    { id: "schedules",        label: "Match Schedules",        icon: CalendarDays,    roles: ["super_admin", "admin"] },
+    { id: "notifications",    label: "Announcements",          icon: Megaphone,       roles: ["super_admin", "admin"] },
+    { id: "gallery",          label: "Gallery Upload",         icon: ImageIcon,       roles: ["super_admin", "admin"] },
+    { id: "faq_management",   label: "FAQ Editor",             icon: HelpCircle,      roles: ["super_admin", "admin"] },
+    { id: "rules_contacts",   label: "Rules & Directory",      icon: BookOpen,        roles: ["super_admin"] },
+    { id: "about",            label: "About Section",          icon: Info,            roles: ["super_admin"] },
+    { id: "payment_settings", label: "Payment Settings",       icon: ToggleRight,     roles: ["super_admin"] },
+    { id: "activity_logs",    label: "Audit Logs",             icon: ScrollText,      roles: ["super_admin"] },
+    { id: "backup_reset",     label: "Backup & Reset",         icon: Archive,         roles: ["super_admin"] },
   ];
 
-  const filteredMenuItems = menuItems.filter((item) => canAccessTab(user, item.id));
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(user.role));
 
   const getRoleBadgeColor = () => {
-    if (user.role === "super_admin") {
-      return "bg-red-500/10 border-red-500/30 text-red-400";
-    }
-    if (user.role === "admin") {
-      return "bg-violet-500/10 border-violet-500/30 text-violet-400";
-    }
+    if (user.role === "super_admin") return "bg-red-500/10 border-red-500/30 text-red-400";
+    if (user.role === "admin")       return "bg-violet-500/10 border-violet-500/30 text-violet-400";
     return "bg-amber-500/10 border-amber-500/30 text-amber-400";
+  };
+
+  const getRoleLabel = () => {
+    if (user.role === "super_admin") return "SUPER ADMIN";
+    if (user.role === "admin")       return `ADMIN${user.scope ? ` · ${user.scope.toUpperCase()}` : ""}`;
+    return "COORDINATOR";
   };
 
   return (
     <div className="min-h-screen bg-[#0a0b0d] text-gray-100 font-sans flex flex-col">
       
-      {/* Resilient Database System Indicator Banner */}
       {!isFirebaseConfigured && (
         <div className="bg-gradient-to-r from-amber-600/90 to-orange-700/90 text-white text-[11px] px-4 py-2 font-mono flex items-center justify-between shadow-md relative z-50">
           <div className="flex items-center gap-2">
             <WifiOff className="w-3.5 h-3.5 animate-bounce" />
             <span>
-              <strong>Chakravyuh Offline Sandbox Sandbox:</strong> Running on simulated lightning-fast LocalStorage container. All registration forms, status changes, and events will persist locally.
+              <strong>Chakravyuh Offline Sandbox:</strong> Running on simulated lightning-fast LocalStorage container. All registration forms, status changes, and events will persist locally.
             </span>
           </div>
           <div className="hidden md:flex items-center gap-1.5 opacity-90">
@@ -95,7 +94,6 @@ export default function AdminLayout({
         </div>
       )}
 
-      {/* Top Main Navigation Header */}
       <header className="bg-[#12141a] border-b border-gray-800/80 px-4 py-3 sticky top-0 z-40 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button 
@@ -120,7 +118,6 @@ export default function AdminLayout({
           </div>
         </div>
 
-        {/* User profile dropdown and metadata */}
         <div className="flex items-center gap-3">
           <div className="hidden md:flex flex-col items-end">
             <div className="flex items-center gap-1.5">
@@ -129,22 +126,17 @@ export default function AdminLayout({
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${getRoleBadgeColor()}`}>
-                {roleDisplayLabel(user)}
+                {getRoleLabel()}
               </span>
-              {user.role === "coordinator" && (
+              {user.role === "coordinator" && user.assignedSports?.length > 0 && (
                 <span className="text-[9px] text-gray-500 font-mono">
                   ({user.assignedSports.join(", ")})
-                </span>
-              )}
-              {user.role === "admin" && (
-                <span className="text-[9px] text-gray-500 font-mono">
-                  scope: {resolveAdminScope(user)}
                 </span>
               )}
             </div>
           </div>
 
-          <div className="w-9 h-9 bg-orange-600/10 border border-orange-500/20 rounded-full flex items-center justify-center text-orange-400 font-bold text-sm shadow-inner shadow-orange-500/5">
+          <div className="w-9 h-9 bg-orange-600/10 border border-orange-500/20 rounded-full flex items-center justify-center text-orange-400 font-bold text-sm">
             {user.displayName.charAt(0).toUpperCase()}
           </div>
 
@@ -169,18 +161,15 @@ export default function AdminLayout({
         </div>
       </header>
 
-      {/* Main Structural Body */}
       <div className="flex flex-1 relative">
-        
-        {/* Navigation Sidebar Drawer */}
         <aside 
           className={`
             fixed inset-y-0 left-0 z-30 w-64 bg-[#12141a] border-r border-gray-800/80 pt-16 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:pt-0 lg:z-0
             ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
-          <div className="p-4 flex flex-col h-full justify-between">
-            <div className="space-y-1.5">
+          <div className="p-4 flex flex-col h-full justify-between overflow-y-auto">
+            <div className="space-y-1">
               <div className="px-3 mb-4">
                 <span className="text-[10px] font-mono tracking-wider font-bold text-gray-600 uppercase">
                   Management Controls
@@ -197,22 +186,21 @@ export default function AdminLayout({
                       setIsSidebarOpen(false);
                     }}
                     className={`
-                      w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all outline-none
+                      w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all outline-none
                       ${isActive 
-                        ? "bg-gradient-to-r from-orange-500/15 to-amber-500/5 border-l-4 border-orange-500 text-orange-500 shadow-md shadow-orange-500/[0.02]" 
+                        ? "bg-gradient-to-r from-orange-500/15 to-amber-500/5 border-l-4 border-orange-500 text-orange-500" 
                         : "text-gray-400 hover:bg-gray-800/30 hover:text-gray-200 border-l-4 border-transparent"
                       }
                     `}
                   >
-                    <Icon className={`w-4 h-4 ${isActive ? "text-orange-500" : "text-gray-500"}`} />
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-orange-500" : "text-gray-500"}`} />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Sidebar Branding footer */}
-            <div className="bg-[#161a23] border border-gray-800/60 rounded-xl p-3 mt-6">
+            <div className="bg-[#161a23] border border-gray-800/60 rounded-xl p-3 mt-4 shrink-0">
               <div className="flex items-center gap-2 mb-1.5">
                 <ShieldCheck className="w-4 h-4 text-orange-500" />
                 <span className="text-[10px] font-bold text-gray-300 font-mono">CHAKRAVYUH SECURITY</span>
@@ -224,20 +212,17 @@ export default function AdminLayout({
           </div>
         </aside>
 
-        {/* Sidebar Overlay for Mobile views */}
         {isSidebarOpen && (
           <div 
             onClick={() => setIsSidebarOpen(false)}
             className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm lg:hidden"
-          ></div>
+          />
         )}
 
-        {/* Primary Page Content Wrapper */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {children}
         </main>
       </div>
-
     </div>
   );
 }
