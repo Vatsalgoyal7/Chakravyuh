@@ -28,7 +28,8 @@ import {
   FAQItem,
   ActivityLogEntry,
   RevenueAnalytics,
-  PaymentVerification
+  PaymentVerification,
+  CustomForm
 } from "../types";
 
 // Safe UUID generator - works on both HTTP and HTTPS (crypto.randomUUID only works on HTTPS)
@@ -581,6 +582,29 @@ const DEFAULT_ABOUT: AboutSection = {
 
   updatedAt: new Date().toISOString()
 };
+
+const DEFAULT_CUSTOM_FORMS: CustomForm[] = [
+  {
+    id: "form_noc_upload",
+    title: "NOC Submission",
+    url: "https://docs.google.com/forms/d/e/1FAIpQLSfD7M0bH1W38YfOgrN6eC_iV5l5r2Y981jS2K7c0-M1sA8y_A/viewform",
+    type: "embed",
+    targetAudience: "all",
+    isActive: false,
+    order: 1,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: "form_feedback",
+    title: "Feedback Desk",
+    url: "https://docs.google.com/forms/d/e/1FAIpQLSfD7M0bH1W38YfOgrN6eC_iV5l5r2Y981jS2K7c0-M1sA8y_A/viewform",
+    type: "redirect",
+    targetAudience: "all",
+    isActive: false,
+    order: 2,
+    createdAt: new Date().toISOString()
+  }
+];
 
 // LocalStorage helpers
 function getLocal<T>(key: string, defaults: T[]): T[] {
@@ -1971,6 +1995,64 @@ export const dbService = {
     if (verification) {
       await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_submitted');
     }
+  },
+
+  // Custom Forms Database Operations
+  async getCustomForms(): Promise<CustomForm[]> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const snapshot = await getDocs(collection(db, "custom_forms"));
+        return snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as CustomForm))
+          .sort((a, b) => a.order - b.order);
+      } catch (err) {
+        console.error("Firestore getCustomForms failed, reading local storage:", err);
+      }
+    }
+    const local = getLocal<CustomForm>("custom_forms", DEFAULT_CUSTOM_FORMS);
+    return local.sort((a, b) => a.order - b.order);
+  },
+
+  async saveCustomForm(item: Omit<CustomForm, "id" | "createdAt"> & { id?: string; createdAt?: string }): Promise<CustomForm> {
+    const timestamp = new Date().toISOString();
+    const id = item.id || `form_${Date.now()}`;
+    const fullItem: CustomForm = { 
+      ...item, 
+      id, 
+      createdAt: item.createdAt || timestamp 
+    };
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await setDoc(doc(db, "custom_forms", id), fullItem);
+        return fullItem;
+      } catch (err) {
+        console.error("Firestore saveCustomForm failed, writing to local storage:", err);
+      }
+    }
+
+    const local = getLocal<CustomForm>("custom_forms", DEFAULT_CUSTOM_FORMS);
+    const existingIndex = local.findIndex(f => f.id === id);
+    if (existingIndex > -1) {
+      local[existingIndex] = fullItem;
+    } else {
+      local.push(fullItem);
+    }
+    setLocal("custom_forms", local);
+    return fullItem;
+  },
+
+  async deleteCustomForm(id: string): Promise<void> {
+    if (isFirebaseConfigured && db) {
+      try {
+        await deleteDoc(doc(db, "custom_forms", id));
+        return;
+      } catch (err) {
+        console.error("Firestore deleteCustomForm failed, deleting from local storage:", err);
+      }
+    }
+    const local = getLocal<CustomForm>("custom_forms", DEFAULT_CUSTOM_FORMS);
+    setLocal("custom_forms", local.filter(f => f.id !== id));
   }
 };
 

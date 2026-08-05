@@ -13,6 +13,8 @@ import PublicRulesContact from "./PublicRulesContact";
 import PublicFAQ from "./PublicFAQ";
 import PublicDashboard from "./PublicDashboard";
 import ArenaPageFrame from "./ArenaPageFrame";
+import PublicCustomForm from "./PublicCustomForm";
+import { CustomForm } from "../types";
 import { ThemeProvider, useTheme } from "../lib/ThemeContext";
 import ThemeSwitcher from "./ThemeSwitcher";
 import ThemeToggle from "./ThemeToggle";
@@ -54,6 +56,13 @@ function PublicPortalContent() {
   const { isWhiteBg } = useTheme();
   const [activeTab, setActiveTab] = useState<string>("home");
   const [preselectedEventId, setPreselectedEventId] = useState<string | null>(null);
+  const [customForms, setCustomForms] = useState<CustomForm[]>([]);
+
+  useEffect(() => {
+    dbService.getCustomForms().then(forms => {
+      setCustomForms(forms.filter(f => f.isActive));
+    }).catch(console.error);
+  }, []);
 
   const [bannerSettings, setBannerSettings] = useState<{
     bannerEnabled: boolean;
@@ -130,7 +139,14 @@ function PublicPortalContent() {
       case "track":
         return <PublicDashboard />;
 
-      default:
+      default: {
+        if (activeTab.startsWith("form_")) {
+          const formId = activeTab.replace("form_", "");
+          const form = customForms.find((f) => f.id === formId);
+          if (form) {
+            return <PublicCustomForm url={form.url} title={form.title} />;
+          }
+        }
         return (
           <PublicHome
             onExploreEvents={() => setActiveTab("events")}
@@ -143,6 +159,7 @@ function PublicPortalContent() {
             }}
           />
         );
+      }
     }
   };
 
@@ -189,13 +206,13 @@ function PublicPortalContent() {
           </div>
         )}
 
-        <PublicNavbar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <PublicNavbar activeTab={activeTab} setActiveTab={setActiveTab} customForms={customForms} />
 
         <main>
           {activeTab === "home" ? (
             renderContent()
           ) : (
-            <ArenaPageFrame scene={activeTab as "about" | "events" | "schedule" | "registration" | "gallery" | "rules" | "faq" | "track"}>
+            <ArenaPageFrame scene={activeTab.startsWith("form_") ? "custom_form" : activeTab as any}>
               {renderContent()}
             </ArenaPageFrame>
           )}

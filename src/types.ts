@@ -281,3 +281,15 @@ export interface PaymentVerification {
   verifiedBy?: string;
   remarks?: string;
 }
+
+export interface CustomForm {
+  id: string;
+  title: string;
+  url: string;
+  type: 'embed' | 'redirect';
+  targetAudience: 'inter' | 'intra' | 'all';
+  isActive: boolean;
+  order: number;
+  iconName?: string;
+  createdAt: string;
+}

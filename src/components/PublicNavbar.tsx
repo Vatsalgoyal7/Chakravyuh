@@ -2,16 +2,17 @@ import React, { useState, useEffect, useRef } from "react";
 import { Menu, X, Trophy, Bell, Info, ShieldAlert, AlertTriangle } from "lucide-react";
 import { useTheme } from "../lib/ThemeContext";
 import { dbService } from "../lib/dbService";
-import { Announcement } from "../types";
+import { Announcement, CustomForm } from "../types";
 import { db, isFirebaseConfigured } from "../lib/firebase";
 import { onSnapshot, collection } from "firebase/firestore";
 
 interface PublicNavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  customForms?: CustomForm[];
 }
 
-export default function PublicNavbar({ activeTab, setActiveTab }: PublicNavbarProps) {
+export default function PublicNavbar({ activeTab, setActiveTab, customForms = [] }: PublicNavbarProps) {
   const { isWhiteBg } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -153,11 +154,22 @@ export default function PublicNavbar({ activeTab, setActiveTab }: PublicNavbarPr
     { id: "track", label: "Track Status" },
     { id: "gallery", label: "Gallery" },
     { id: "rules", label: "Rules & Contacts" },
-    { id: "faq", label: "FAQs" }
+    { id: "faq", label: "FAQs" },
+    ...customForms.map(f => ({
+      id: `form_${f.id}`,
+      label: f.title,
+      isExternal: f.type === "redirect",
+      url: f.url
+    }))
   ];
 
   const handleNavClick = (id: string) => {
-    setActiveTab(id);
+    const item = menuItems.find(m => m.id === id);
+    if (item && 'isExternal' in item && item.isExternal && item.url) {
+      window.open(item.url, "_blank");
+    } else {
+      setActiveTab(id);
+    }
     setIsOpen(false);
   };
 

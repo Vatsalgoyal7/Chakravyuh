@@ -24,6 +24,7 @@ const AdminsManagement = lazy(() => import("./components/AdminsManagement"));
 const RevenueDashboard = lazy(() => import("./components/RevenueDashboard"));
 const ActivityLogsManagement = lazy(() => import("./components/ActivityLogsManagement"));
 const BackupResetManagement = lazy(() => import("./components/BackupResetManagement"));
+const FormsManagement = lazy(() => import("./components/FormsManagement"));
 
 function RouteLoading() {
   return (
@@ -255,6 +256,9 @@ export default function App() {
       case "payment_settings":
         if (!canAccessTab(user!, "payment_settings")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
         return <PaymentSettings />;
+      case "custom_forms":
+        if (!canAccessTab(user!, "custom_forms")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        return <FormsManagement />;
       case "faq_management":
         if (!canAccessTab(user!, "faq_management")) return <div className="text-xs text-red-500 font-mono">Access Locked.</div>;
         return <FAQManagement />;

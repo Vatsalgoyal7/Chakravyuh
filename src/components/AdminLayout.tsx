@@ -20,7 +20,8 @@ import {
   IndianRupee,
   ScrollText,
   Archive,
-  ToggleRight
+  ToggleRight,
+  Layers
 } from "lucide-react";
 import { AdminUser } from "../types";
 import { isFirebaseConfigured } from "../lib/firebase";
@@ -58,6 +59,7 @@ export default function AdminLayout({
     { id: "rules_contacts",   label: "Rules & Directory",      icon: BookOpen,        roles: ["super_admin"] },
     { id: "about",            label: "About Section",          icon: Info,            roles: ["super_admin"] },
     { id: "payment_settings", label: "Payment Settings",       icon: ToggleRight,     roles: ["super_admin"] },
+    { id: "custom_forms",     label: "Custom Forms",           icon: Layers,          roles: ["super_admin"] },
     { id: "activity_logs",    label: "Audit Logs",             icon: ScrollText,      roles: ["super_admin"] },
     { id: "backup_reset",     label: "Backup & Reset",         icon: Archive,         roles: ["super_admin"] },
   ];

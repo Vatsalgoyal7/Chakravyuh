@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 
-type Scene = "about" | "events" | "schedule" | "registration" | "gallery" | "rules" | "faq" | "track";
+type Scene = "about" | "events" | "schedule" | "registration" | "gallery" | "rules" | "faq" | "track" | "custom_form";
 
 interface ArenaPageFrameProps {
   scene: Scene;
@@ -27,6 +27,7 @@ const sceneConfig = {
   rules: { label: "PLAY WITH HONOUR", Icon: ShieldCheck, tone: "amber" },
   faq: { label: "ARENA INTELLIGENCE DESK", Icon: CircleHelp, tone: "sky" },
   track: { label: "ROSTER STATUS COMMAND CENTER", Icon: Search, tone: "violet" },
+  custom_form: { label: "EXTERNAL APPLICATION GATEWAY", Icon: ClipboardCheck, tone: "sky" },
 } as const;
 
 export default function ArenaPageFrame({ scene, children }: ArenaPageFrameProps) {

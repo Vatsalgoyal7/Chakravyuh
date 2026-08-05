@@ -15,7 +15,8 @@ export type AdminTabId =
   | "faq_management"
   | "revenue"
   | "activity_logs"
-  | "backup_reset";
+  | "backup_reset"
+  | "custom_forms";
 
 const TAB_ROLES: Record<AdminTabId, UserRole[]> = {
   dashboard: ["super_admin", "admin", "coordinator"],
@@ -33,6 +34,7 @@ const TAB_ROLES: Record<AdminTabId, UserRole[]> = {
   revenue: ["super_admin"],
   activity_logs: ["super_admin"],
   backup_reset: ["super_admin"],
+  custom_forms: ["super_admin"],
 };
 
 type UserRole = AdminUser["role"];
