@@ -1876,16 +1876,28 @@ export const dbService = {
     // Update registration payment status based on verification
     const verification = (await this.getPaymentVerifications()).find(v => v.id === verificationId);
     if (verification && status === 'approved') {
-      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_verified');
+      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_verified', verification.transactionId);
     } else if (verification && status === 'rejected') {
-      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_rejected');
+      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_rejected', verification.transactionId);
     }
   },
 
-  async updateRegistrationPaymentStatus(registrationId: string, status: 'payment_submitted' | 'payment_verified' | 'payment_rejected'): Promise<void> {
+  async updateRegistrationPaymentStatus(
+    registrationId: string, 
+    status: 'payment_submitted' | 'payment_verified' | 'payment_rejected',
+    utrNumber?: string
+  ): Promise<void> {
+    const updatePayload: any = { paymentStatus: status };
+    if (utrNumber) {
+      updatePayload.utrNumber = utrNumber;
+      updatePayload.paymentSubmittedAt = new Date().toISOString();
+    }
+    if (status === 'payment_verified') {
+      updatePayload.paymentVerifiedAt = new Date().toISOString();
+    }
     if (isFirebaseConfigured && db) {
       try {
-        await updateDoc(doc(db, "registrations", registrationId), { paymentStatus: status });
+        await updateDoc(doc(db, "registrations", registrationId), updatePayload);
         console.log("updateRegistrationPaymentStatus - Successfully updated in Firestore");
       } catch (err) {
         console.error("Firestore updateRegistrationPaymentStatus failed:", err);
@@ -1896,8 +1908,7 @@ export const dbService = {
       if (index !== -1) {
         registrations[index] = {
           ...registrations[index],
-          paymentStatus: status,
-          paymentVerifiedAt: status === 'payment_verified' ? new Date().toISOString() : undefined,
+          ...updatePayload,
           updatedAt: new Date().toISOString()
         };
         setLocal("registrations", registrations);

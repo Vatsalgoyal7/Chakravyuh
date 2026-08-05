@@ -89,6 +89,7 @@ export default function PublicRegistration({
 
   // Payment add-on states
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig | null>(null);
+  const [selectedQRIndex, setSelectedQRIndex] = useState(0);
 
   // Load all active events
   useEffect(() => {
@@ -512,119 +513,161 @@ export default function PublicRegistration({
             )}
 
             {/* Payment Section — add-on, shown only if payment is enabled and not an internal IMSEC student */}
-            {paymentConfig?.enabled && successData && successData.paymentStatus !== "ims_student" && !utrSubmitted && (
-              <div className={`rounded-3xl border p-6 space-y-5 font-mono text-xs animate-in fade-in duration-300 ${
-                isWhiteBg ? 'bg-white border-orange-200' : 'bg-[#12151a] border-orange-500/15'
-              }`}>
-                <div className="text-center space-y-1">
-                  <p className={`font-black text-sm uppercase tracking-wider ${isWhiteBg ? 'text-gray-900' : 'text-white'}`}>
-                    Complete Payment to Confirm Slot
-                  </p>
-                  <p className={`text-[10px] ${isWhiteBg ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {paymentConfig.instructions}
-                  </p>
-                </div>
+            {paymentConfig?.enabled && successData && successData.paymentStatus !== "ims_student" && !utrSubmitted && (() => {
+              const activeQRs = (paymentConfig.qrCodes || []).filter(q => 
+                q.isActive && (q.appliedTo === 'both' || q.appliedTo === selectedEvent?.type)
+              );
+              const hasQRs = activeQRs.length > 0;
+              const currentQR = hasQRs ? activeQRs[Math.min(selectedQRIndex, activeQRs.length - 1)] : null;
+              
+              const qrImage = currentQR?.imageUrl || paymentConfig.qrImageUrl;
+              const upiIdVal = currentQR?.upiId || paymentConfig.upiId;
+              const baseFee = currentQR?.amountOverride !== undefined ? currentQR.amountOverride : paymentConfig.registrationFee;
+              const amount = selectedEvent?.type === 'team' ? (baseFee * (members.length + 1)) : baseFee;
+              const noteText = currentQR?.note || null;
 
-                <div className="flex flex-col items-center gap-4">
-                  <div className="bg-white p-3 rounded-2xl shadow-xl shadow-black/20">
-                    {paymentConfig.qrImageUrl ? (
-                      <img src={paymentConfig.qrImageUrl} alt="UPI QR Code" className="w-44 h-44 object-contain" />
-                    ) : (
-                      <div className="w-44 h-44 flex items-center justify-center">
-                        <QrCode className="w-20 h-20 text-gray-300" />
-                      </div>
-                    )}
+              return (
+                <div className={`rounded-3xl border p-6 space-y-5 font-mono text-xs animate-in fade-in duration-300 ${
+                  isWhiteBg ? 'bg-white border-orange-200' : 'bg-[#12151a] border-orange-500/15'
+                }`}>
+                  <div className="text-center space-y-1">
+                    <p className={`font-black text-sm uppercase tracking-wider ${isWhiteBg ? 'text-gray-900' : 'text-white'}`}>
+                      Complete Payment to Confirm Slot
+                    </p>
+                    <p className={`text-[10px] ${isWhiteBg ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {paymentConfig.instructions}
+                    </p>
                   </div>
-                  <div className="text-center space-y-0.5">
-                    <p className={`font-bold text-base ${isWhiteBg ? 'text-gray-900' : 'text-white'}`}>{paymentConfig.payeeName}</p>
-                    <p className="text-orange-400 font-mono text-sm">{paymentConfig.upiId}</p>
-                    {paymentConfig.registrationFee > 0 && (
-                      <p className={`text-2xl font-black mt-1 ${isWhiteBg ? 'text-gray-900' : 'text-white'}`}>
-                        ₹{selectedEvent?.type === 'team' ? (paymentConfig.registrationFee * (members.length + 1)) : paymentConfig.registrationFee}
-                      </p>
-                    )}
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
-                    Payer Name
-                  </label>
-                  <input
-                    type="text"
-                    value={payerName}
-                    onChange={e => setPayerName(e.target.value)}
-                    placeholder="Enter name of person who paid"
-                    className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
-                      isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
-                    }`}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
-                    Payer Mobile Number
-                  </label>
-                  <input
-                    type="text"
-                    value={payerMobile}
-                    onChange={e => setPayerMobile(e.target.value)}
-                    placeholder="Enter 10-digit mobile number"
-                    className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
-                      isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
-                    }`}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
-                    UTR / Transaction ID (after payment)
-                  </label>
-                  <input
-                    type="text"
-                    value={utrInput}
-                    onChange={e => setUtrInput(e.target.value)}
-                    placeholder="Enter 12-digit UTR or Transaction ID"
-                    className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
-                      isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
-                    }`}
-                  />
-                </div>
-
-                <button
-                  disabled={utrInput.trim().length < 6 || utrSubmitting || payerName.trim().length < 2 || payerMobile.trim().length < 10}
-                  onClick={async () => {
-                    if (!successData || utrInput.trim().length < 6 || payerName.trim().length < 2 || payerMobile.trim().length < 10) return;
-                    setUtrSubmitting(true);
-                    try {
-                      const amount = selectedEvent?.type === 'team' ? (paymentConfig.registrationFee * (members.length + 1)) : paymentConfig.registrationFee;
-                      await dbService.submitPaymentVerification({
-                        registrationId: successData.id,
-                        payerName: payerName.trim(),
-                        payerMobile: payerMobile.trim(),
-                        transactionId: utrInput.trim(),
-                        amount: amount,
-                        status: 'pending'
-                      });
-                      await dbService.updateRegistrationPaymentStatus(successData.id, 'payment_submitted');
-                      setUtrSubmitted(true);
-                    } catch (err) {
-                      console.error(err);
-                      alert("Failed to submit payment verification. Please try again.");
-                    } finally {
-                      setUtrSubmitting(false);
-                    }
-                  }}
-                  className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
-                >
-                  {utrSubmitting ? (
-                    <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Submitting...</>
-                  ) : (
-                    <>Submit Payment Proof</>
+                  {/* Multiple QR Selector Tabs */}
+                  {hasQRs && (
+                    <div className="flex flex-wrap gap-1.5 justify-center py-2 border-y border-white/[0.04] dark:border-white/5">
+                      {activeQRs.map((qr, index) => (
+                        <button
+                          key={qr.id}
+                          type="button"
+                          onClick={() => setSelectedQRIndex(index)}
+                          className={`px-3.5 py-1.5 rounded-xl text-[9px] font-bold tracking-wider uppercase border transition-all cursor-pointer ${
+                            selectedQRIndex === index
+                              ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
+                              : isWhiteBg 
+                                ? "bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200"
+                                : "bg-[#08090c] border-white/[0.04] text-gray-400 hover:bg-white/[0.02]"
+                          }`}
+                        >
+                          {qr.label}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </button>
-              </div>
-            )}
+
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-xl shadow-black/20">
+                      {qrImage ? (
+                        <img src={qrImage} alt="UPI QR Code" className="w-44 h-44 object-contain" />
+                      ) : (
+                        <div className="w-44 h-44 flex items-center justify-center">
+                          <QrCode className="w-20 h-20 text-gray-300" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-center space-y-0.5">
+                      <p className={`font-bold text-base ${isWhiteBg ? 'text-gray-900' : 'text-white'}`}>{paymentConfig.payeeName}</p>
+                      <p className="text-orange-400 font-mono text-sm">{upiIdVal}</p>
+                      
+                      {noteText && (
+                        <p className={`text-[10px] italic font-sans max-w-[200px] mx-auto text-center mt-1 px-2.5 py-0.5 rounded border ${
+                          isWhiteBg ? 'bg-orange-50/50 border-orange-100 text-orange-850' : 'bg-orange-500/5 border-orange-500/10 text-orange-400'
+                        }`}>{noteText}</p>
+                      )}
+
+                      {amount > 0 && (
+                        <p className={`text-2xl font-black mt-1.5 ${isWhiteBg ? 'text-gray-900' : 'text-white'}`}>
+                          ₹{amount}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
+                      Payer Name
+                    </label>
+                    <input
+                      type="text"
+                      value={payerName}
+                      onChange={e => setPayerName(e.target.value)}
+                      placeholder="Enter name of person who paid"
+                      className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
+                        isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
+                      Payer Mobile Number
+                    </label>
+                    <input
+                      type="text"
+                      value={payerMobile}
+                      onChange={e => setPayerMobile(e.target.value)}
+                      placeholder="Enter 10-digit mobile number"
+                      className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
+                        isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
+                      UTR / Transaction ID (after payment)
+                    </label>
+                    <input
+                      type="text"
+                      value={utrInput}
+                      onChange={e => setUtrInput(e.target.value)}
+                      placeholder="Enter 12-digit UTR or Transaction ID"
+                      className={`w-full px-3.5 py-3 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all font-mono ${
+                        isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'
+                      }`}
+                    />
+                  </div>
+
+                  <button
+                    disabled={utrInput.trim().length < 6 || utrSubmitting || payerName.trim().length < 2 || payerMobile.trim().length < 10}
+                    onClick={async () => {
+                      if (!successData || utrInput.trim().length < 6 || payerName.trim().length < 2 || payerMobile.trim().length < 10) return;
+                      setUtrSubmitting(true);
+                      try {
+                        await dbService.submitPaymentVerification({
+                          registrationId: successData.id,
+                          payerName: payerName.trim(),
+                          payerMobile: payerMobile.trim(),
+                          transactionId: utrInput.trim(),
+                          amount: amount,
+                          status: 'pending'
+                        });
+                        await dbService.updateRegistrationPaymentStatus(successData.id, 'payment_submitted', utrInput.trim());
+                        setUtrSubmitted(true);
+                      } catch (err) {
+                        console.error(err);
+                        alert("Failed to submit payment verification. Please try again.");
+                      } finally {
+                        setUtrSubmitting(false);
+                      }
+                    }}
+                    className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
+                  >
+                    {utrSubmitting ? (
+                      <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Submitting...</>
+                    ) : (
+                      <>Submit Payment Proof</>
+                    )}
+                  </button>
+                </div>
+              );
+            })()}
 
             {/* UTR submitted confirmation */}
             {utrSubmitted && (

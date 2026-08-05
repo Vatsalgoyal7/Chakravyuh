@@ -136,10 +136,22 @@ export interface PublicRegistrationStatus {
   checkedIn: boolean;
 }
 
+export interface QRCode {
+  id: string;
+  label: string;             // e.g., "Primary", "Secondary", "Bank A"
+  imageUrl: string;
+  upiId?: string;            // Optional specific UPI ID for this QR
+  isActive: boolean;         // Toggle to enable/disable this QR
+  appliedTo: 'individual' | 'team' | 'both'; // Apply to individual, team, or both types of sports
+  amountOverride?: number;   // Custom fee override for this specific QR
+  note?: string;             // Custom short note/instructions for this QR
+}
+
 export interface PaymentConfig {
   enabled: boolean;          // Toggle: payment required or not
   upiId: string;             // e.g. 9876543210@ybl
-  qrImageUrl: string;        // URL of uploaded QR image
+  qrImageUrl: string;        // URL of uploaded QR image (fallback/primary)
+  qrCodes?: QRCode[];        // List of all customizable QR codes
   registrationFee: number;   // Amount in INR
   payeeName: string;         // Name shown on QR screen
   instructions: string;      // Custom instructions for students
