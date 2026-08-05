@@ -222,14 +222,15 @@ export default function NotificationsManagement() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div className="space-y-1.5 md:col-span-8">
-            <label className="block text-[10px] uppercase text-gray-450 font-bold font-mono">Alert Text Description</label>
-            <input
-              type="text"
-              className="w-full px-3.5 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white"
-              placeholder="e.g., Rewards And Prizes : Prizes Worth"
+            <label className="block text-[10px] uppercase text-gray-450 font-bold font-mono">Alert Ticker Messages</label>
+            <textarea
+              rows={2}
+              className="w-full px-3.5 py-2 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white leading-normal"
+              placeholder="e.g., Rewards And Prizes : Prizes Worth (for first line)&#10;Registrations Deadline: October 03, 2026 (for second line)&#10;Write each message on a new line."
               value={bannerText}
               onChange={(e) => setBannerText(e.target.value)}
             />
+            <p className="text-[9px] text-gray-650 font-mono">Write each broadcast message on a new line. The first line will include the prize money counter automatically.</p>
           </div>
           <div className="space-y-1.5 md:col-span-4">
             <label className="block text-[10px] uppercase text-gray-450 font-bold font-mono">Prize Pool Amount (₹)</label>

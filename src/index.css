@@ -131,6 +131,20 @@
   animation: marquee 25s linear infinite;
 }
 
+/* Slow train-style marquee for top alert ribbon */
+@keyframes banner-marquee {
+  0%   { transform: translateX(100vw); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-banner-marquee {
+  animation: banner-marquee 40s linear infinite;
+}
+
+.animate-banner-marquee:hover {
+  animation-play-state: paused;
+}
+
 @keyframes pulse-glow {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 0.6; }

@@ -44,7 +44,7 @@ function PrizePoolCounter({ target }: { target: number }) {
   }, [target]);
 
   return (
-    <span className="font-extrabold tracking-wider font-mono text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/25 ml-1 animate-pulse">
+    <span className="font-extrabold tracking-wider font-mono text-orange-800 bg-orange-500/15 px-2 py-0.5 rounded border border-orange-500/20 ml-1 animate-pulse">
       ₹{count.toLocaleString("en-IN")}
     </span>
   );
@@ -156,12 +156,35 @@ function PublicPortalContent() {
     >
       <div>
         {bannerSettings.bannerEnabled && (
-          <div className="bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 text-white py-2.5 px-4 text-xs font-mono flex items-center justify-center gap-2 relative z-50 border-b border-orange-500/30 shadow-lg shadow-orange-500/10 select-none">
-            <Gift className="w-3.5 h-3.5 text-amber-300 animate-bounce" />
-            <div className="flex items-center gap-1.5 flex-wrap justify-center">
-              <span className="font-bold tracking-wide uppercase">{bannerSettings.bannerText}</span>
-              <PrizePoolCounter target={bannerSettings.prizePoolAmount} />
-              <Zap className="w-3 h-3 text-amber-300 animate-pulse ml-1" />
+          <div className="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-slate-950 py-2.5 px-4 text-xs font-mono relative z-50 border-b border-yellow-500/10 shadow-md shadow-yellow-500/[0.03] select-none overflow-hidden h-9 flex items-center">
+            {/* Live Alert Badge */}
+            <div className="absolute left-3 z-10 bg-amber-500/90 backdrop-blur-md px-2 py-0.5 rounded-lg border border-amber-600/35 flex items-center gap-1 shadow-sm shrink-0">
+              <Gift className="w-3.5 h-3.5 text-slate-950 animate-bounce" />
+              <span className="font-black text-[9px] tracking-wider uppercase">Live Announcement</span>
+            </div>
+            
+            {/* Marquee Wrapper */}
+            <div className="w-full overflow-hidden flex items-center pl-28">
+              <div className="absolute flex items-center gap-16 animate-banner-marquee whitespace-nowrap text-xs font-black text-slate-950 cursor-pointer">
+                {(() => {
+                  const items = bannerSettings.bannerText
+                    ? bannerSettings.bannerText.split("\n").map(l => l.trim()).filter(Boolean)
+                    : ["Rewards And Prizes"];
+                  
+                  return items.map((msg, index) => (
+                    <span key={index} className="flex items-center gap-3 select-none">
+                      <span className="text-[10px] opacity-60">✦</span>
+                      <span>{msg}</span>
+                      {index === 0 && (
+                        <>
+                          <PrizePoolCounter target={bannerSettings.prizePoolAmount} />
+                          <Zap className="w-3.5 h-3.5 text-orange-600 animate-pulse" />
+                        </>
+                      )}
+                    </span>
+                  ));
+                })()}
+              </div>
             </div>
           </div>
         )}
