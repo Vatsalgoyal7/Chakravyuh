@@ -12,13 +12,23 @@ import {
   Calendar,
   CheckCircle,
   Eye,
-  BellRing
+  BellRing,
+  Save,
+  Loader2
 } from "lucide-react";
 
 export default function NotificationsManagement() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+
+  // Top Banner / Cash Prize Pool Alert Settings
+  const [bannerEnabled, setBannerEnabled] = useState(true);
+  const [bannerText, setBannerText] = useState("Rewards And Prizes : Prizes Worth");
+  const [prizePoolAmount, setPrizePoolAmount] = useState(100000);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoEnabled, setVideoEnabled] = useState(false);
+  const [isSavingBanner, setIsSavingBanner] = useState(false);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -34,14 +44,41 @@ export default function NotificationsManagement() {
   async function loadAnnouncements() {
     setIsLoading(true);
     try {
-      const data = await dbService.getAnnouncements();
+      const [data, homepage] = await Promise.all([
+        dbService.getAnnouncements(),
+        dbService.getHomepageSettings()
+      ]);
       setAnnouncements(data);
+      setBannerEnabled(homepage.bannerEnabled ?? true);
+      setBannerText(homepage.bannerText ?? "Rewards And Prizes : Prizes Worth");
+      setPrizePoolAmount(homepage.prizePoolAmount ?? 100000);
+      setVideoUrl(homepage.videoUrl || "");
+      setVideoEnabled(homepage.videoEnabled ?? false);
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
   }
+
+  const handleSaveBanner = async () => {
+    setIsSavingBanner(true);
+    try {
+      await dbService.saveHomepageSettings({
+        videoUrl,
+        videoEnabled,
+        bannerEnabled,
+        bannerText,
+        prizePoolAmount
+      });
+      alert("✓ Top banner settings saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save banner settings.");
+    } finally {
+      setIsSavingBanner(false);
+    }
+  };
 
   const resetForm = () => {
     setTitle("");
@@ -156,6 +193,66 @@ export default function NotificationsManagement() {
             <span>Create Announcement</span>
           </button>
         )}
+      </div>
+
+      {/* Top Banner Alert / Cash Prize Control Panel */}
+      <div className="bg-[#12141a] border border-orange-500/10 p-5 rounded-2xl space-y-4">
+        <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+          <div>
+            <h3 className="text-xs uppercase tracking-wider font-bold text-orange-500 font-mono flex items-center gap-2">
+              <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
+              <span>Top Hero Alert Ribbon & Cash Prizes</span>
+            </h3>
+            <p className="text-[10px] text-gray-500 mt-0.5 font-mono">Configure the sticky cashprize promotional banner at the top of the homepage.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-gray-400">Ribbon Status:</span>
+            <button
+              onClick={() => setBannerEnabled(!bannerEnabled)}
+              className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                bannerEnabled 
+                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" 
+                  : "bg-gray-800 border-gray-700 text-gray-500"
+              }`}
+            >
+              {bannerEnabled ? "ACTIVE (ON)" : "PAUSED (OFF)"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="space-y-1.5 md:col-span-8">
+            <label className="block text-[10px] uppercase text-gray-450 font-bold font-mono">Alert Text Description</label>
+            <input
+              type="text"
+              className="w-full px-3.5 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white"
+              placeholder="e.g., Rewards And Prizes : Prizes Worth"
+              value={bannerText}
+              onChange={(e) => setBannerText(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-4">
+            <label className="block text-[10px] uppercase text-gray-450 font-bold font-mono">Prize Pool Amount (₹)</label>
+            <input
+              type="number"
+              className="w-full px-3.5 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
+              placeholder="e.g., 100000"
+              value={prizePoolAmount}
+              onChange={(e) => setPrizePoolAmount(Number(e.target.value) || 0)}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={handleSaveBanner}
+            disabled={isSavingBanner}
+            className="px-5 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-[#07080a] font-bold rounded-xl text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            {isSavingBanner ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            <span>{isSavingBanner ? "Saving..." : "Save Ribbon Settings"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Editor Block */}

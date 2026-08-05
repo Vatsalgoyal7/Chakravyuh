@@ -1396,9 +1396,21 @@ export const dbService = {
     setLocal("users", local.filter(u => u.uid !== uid));
   },
 
-  // ── Homepage Video Settings ──────────────────────────────────────────────
-  async getHomepageSettings(): Promise<{ videoUrl: string; videoEnabled: boolean }> {
-    const defaults = { videoUrl: "", videoEnabled: false };
+  // ── Homepage Video & Banner Settings ──────────────────────────────────────
+  async getHomepageSettings(): Promise<{
+    videoUrl: string;
+    videoEnabled: boolean;
+    bannerEnabled?: boolean;
+    bannerText?: string;
+    prizePoolAmount?: number;
+  }> {
+    const defaults = {
+      videoUrl: "",
+      videoEnabled: false,
+      bannerEnabled: true,
+      bannerText: "Rewards And Prizes : Prizes Worth",
+      prizePoolAmount: 100000
+    };
     if (isFirebaseConfigured && db) {
       try {
         const snap = await getDoc(doc(db, "settings", "homepage"));
@@ -1407,6 +1419,9 @@ export const dbService = {
           return {
             videoUrl: data.videoUrl || "",
             videoEnabled: data.videoEnabled ?? false,
+            bannerEnabled: data.bannerEnabled ?? true,
+            bannerText: data.bannerText ?? "Rewards And Prizes : Prizes Worth",
+            prizePoolAmount: data.prizePoolAmount ?? 100000,
           };
         }
         return defaults;
@@ -1418,7 +1433,13 @@ export const dbService = {
     return stored ? JSON.parse(stored) : defaults;
   },
 
-  async saveHomepageSettings(settings: { videoUrl: string; videoEnabled: boolean }): Promise<void> {
+  async saveHomepageSettings(settings: {
+    videoUrl: string;
+    videoEnabled: boolean;
+    bannerEnabled?: boolean;
+    bannerText?: string;
+    prizePoolAmount?: number;
+  }): Promise<void> {
     if (isFirebaseConfigured && db) {
       try {
         await setDoc(doc(db, "settings", "homepage"), settings, { merge: true });
@@ -1428,7 +1449,9 @@ export const dbService = {
         throw err;
       }
     }
-    localStorage.setItem("chakravyuh_homepage_settings", JSON.stringify(settings));
+    const current = await this.getHomepageSettings();
+    const merged = { ...current, ...settings };
+    localStorage.setItem("chakravyuh_homepage_settings", JSON.stringify(merged));
   },
   // ── Payment Configuration (Super Admin) ─────────────────────────────────
   async getPaymentConfig(): Promise<import("../types").PaymentConfig> {
