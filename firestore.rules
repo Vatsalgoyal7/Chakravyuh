@@ -45,7 +45,12 @@ service cloud.firestore {
     match /notifications/{notificationId} { allow read: if true; allow write: if isSuperAdmin(); }
     match /contacts/{contactId} { allow read: if true; allow write: if isSuperAdmin(); }
     match /rules_general/{ruleId} { allow read: if true; allow write: if isSuperAdmin(); }
-    match /schedules/{scheduleId} { allow read: if true; allow write: if isSuperAdmin(); }
+    match /schedules/{scheduleId} { allow read: if true; allow write: if isAdmin(); }
     match /settings/{settingId} { allow read: if true; allow write: if isSuperAdmin(); }
+    match /faqs/{faqId} { allow read: if true; allow write: if isSuperAdmin() || isAdmin(); }
+    match /activity_logs/{logId} { allow read: if isSuperAdmin(); allow create: if signedIn(); allow update, delete: if isSuperAdmin(); }
+    match /payment_verifications/{verificationId} { allow read: if isSuperAdmin() || isCoordinator(); allow create: if true; allow update, delete: if isSuperAdmin(); }
+    match /custom_forms/{formId} { allow read: if true; allow write: if isSuperAdmin(); }
+    match /about/{docId} { allow read: if true; allow write: if isSuperAdmin(); }
   }
 }

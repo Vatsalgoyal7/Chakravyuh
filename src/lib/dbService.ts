@@ -2027,7 +2027,8 @@ export const dbService = {
         await setDoc(doc(db, "custom_forms", id), fullItem);
         return fullItem;
       } catch (err) {
-        console.error("Firestore saveCustomForm failed, writing to local storage:", err);
+        console.error("Firestore saveCustomForm failed:", err);
+        throw err;
       }
     }
 
@@ -2048,7 +2049,8 @@ export const dbService = {
         await deleteDoc(doc(db, "custom_forms", id));
         return;
       } catch (err) {
-        console.error("Firestore deleteCustomForm failed, deleting from local storage:", err);
+        console.error("Firestore deleteCustomForm failed:", err);
+        throw err;
       }
     }
     const local = getLocal<CustomForm>("custom_forms", DEFAULT_CUSTOM_FORMS);

@@ -11,7 +11,6 @@ import {
   Layers, 
   ExternalLink, 
   Check, 
-  Eye, 
   Sparkles,
   Link
 } from "lucide-react";
@@ -48,6 +47,38 @@ export default function FormsManagement() {
     }
   }
 
+  const DEFAULT_CUSTOM_FORMS_SEED = [
+    {
+      title: "NOC Submission",
+      url: "https://docs.google.com/forms/d/e/1FAIpQLSfD7M0bH1W38YfOgrN6eC_iV5l5r2Y981jS2K7c0-M1sA8y_A/viewform",
+      type: "embed" as const,
+      targetAudience: "all" as const,
+      isActive: true,
+      order: 1
+    },
+    {
+      title: "Feedback Desk",
+      url: "https://docs.google.com/forms/d/e/1FAIpQLSfD7M0bH1W38YfOgrN6eC_iV5l5r2Y981jS2K7c0-M1sA8y_A/viewform",
+      type: "redirect" as const,
+      targetAudience: "all" as const,
+      isActive: true,
+      order: 2
+    }
+  ];
+
+  const handleSeedDefaults = async () => {
+    if (!confirm(`This will add ${DEFAULT_CUSTOM_FORMS_SEED.length} default custom forms. Continue?`)) return;
+    try {
+      for (const form of DEFAULT_CUSTOM_FORMS_SEED) {
+        await dbService.saveCustomForm(form);
+      }
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to seed custom forms: " + (err.message || err));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !url.trim()) return;
@@ -65,8 +96,9 @@ export default function FormsManagement() {
       });
       resetForm();
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to save custom form:", err);
+      alert("Failed to save custom form: " + (err.message || err));
     }
   };
 
@@ -99,8 +131,9 @@ export default function FormsManagement() {
     try {
       await dbService.deleteCustomForm(id);
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to delete custom form:", err);
+      alert("Failed to delete custom form: " + (err.message || err));
     }
   };
 
@@ -111,8 +144,9 @@ export default function FormsManagement() {
         isActive: !form.isActive
       });
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to toggle form state:", err);
+      alert("Failed to toggle state: " + (err.message || err));
     }
   };
 
@@ -136,8 +170,9 @@ export default function FormsManagement() {
         dbService.saveCustomForm(targetForm)
       ]);
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to reorder forms:", err);
+      alert("Failed to reorder: " + (err.message || err));
     }
   };
 
@@ -320,12 +355,21 @@ export default function FormsManagement() {
           <p className="text-gray-500">Loading custom gateways...</p>
         </div>
       ) : forms.length === 0 ? (
-        <div className="text-center py-16 border border-gray-800/80 bg-[#12141a]/40 rounded-3xl">
-          <Link className="w-10 h-10 text-gray-700 mx-auto mb-3" />
-          <p className="font-bold text-white uppercase mb-1">No Custom Gateways Formed</p>
-          <p className="text-gray-500 max-w-sm mx-auto leading-relaxed mt-0.5">
-            Add NOC submission forms, external survey links, or documents links to inject them seamlessly into the student navigation dashboard.
-          </p>
+        <div className="text-center py-16 border border-gray-800/80 bg-[#12141a]/40 rounded-3xl space-y-4">
+          <div className="flex flex-col items-center justify-center">
+            <Link className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+            <p className="font-bold text-white uppercase mb-1">No Custom Gateways Formed</p>
+            <p className="text-gray-500 max-w-sm mx-auto leading-relaxed mt-0.5">
+              Add NOC submission forms, external survey links, or documents links to inject them seamlessly into the student navigation dashboard.
+            </p>
+          </div>
+          <button
+            onClick={handleSeedDefaults}
+            className="px-4 py-2 border border-orange-500/20 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 font-bold rounded-xl transition-all cursor-pointer inline-flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4 animate-pulse" />
+            <span>Seed Default Templates</span>
+          </button>
         </div>
       ) : (
         <div className="border border-gray-800/80 bg-[#12141a]/40 rounded-3xl overflow-hidden shadow-xl">

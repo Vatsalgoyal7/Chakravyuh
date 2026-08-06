@@ -16,6 +16,8 @@ import ArenaPageFrame from "./ArenaPageFrame";
 import PublicCustomForm from "./PublicCustomForm";
 import { CustomForm } from "../types";
 import { ThemeProvider, useTheme } from "../lib/ThemeContext";
+import { db, isFirebaseConfigured } from "../lib/firebase";
+import { onSnapshot, collection } from "firebase/firestore";
 import ThemeSwitcher from "./ThemeSwitcher";
 import ThemeToggle from "./ThemeToggle";
 
@@ -59,9 +61,25 @@ function PublicPortalContent() {
   const [customForms, setCustomForms] = useState<CustomForm[]>([]);
 
   useEffect(() => {
+    // 1. Initial Load fallback
     dbService.getCustomForms().then(forms => {
       setCustomForms(forms.filter(f => f.isActive));
     }).catch(console.error);
+
+    // 2. Real-time sync if Firebase is configured
+    if (isFirebaseConfigured && db) {
+      try {
+        const unsubscribe = onSnapshot(collection(db, "custom_forms"), (snapshot) => {
+          const forms = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomForm));
+          setCustomForms(forms.filter(f => f.isActive).sort((a, b) => a.order - b.order));
+        }, (err) => {
+          console.error("Firestore custom_forms listener failed:", err);
+        });
+        return () => unsubscribe();
+      } catch (err) {
+        console.error("Failed to set up custom_forms listener:", err);
+      }
+    }
   }, []);
 
   const [bannerSettings, setBannerSettings] = useState<{
