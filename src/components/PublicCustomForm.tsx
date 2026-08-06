@@ -25,7 +25,7 @@ export default function PublicCustomForm({ url, title }: PublicCustomFormProps) 
   const embedUrl = getEmbeddableUrl(url);
 
   return (
-    <div className="bg-transparent text-white min-h-[80vh] py-6 px-4 sm:px-6">
+    <div className="bg-transparent text-white min-h-[80vh] pt-12 pb-6 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto space-y-4">
         
         {/* Header control panel */}
