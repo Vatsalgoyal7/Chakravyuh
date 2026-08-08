@@ -2714,42 +2714,41 @@ export const dbService = {
 
 
   async saveUser(user: AdminUser): Promise<AdminUser> {
+    // Sanitize user object to remove any undefined properties which crash Firebase
+    const cleanUser = { ...user };
+    Object.keys(cleanUser).forEach(key => {
+      if ((cleanUser as any)[key] === undefined) {
+        delete (cleanUser as any)[key];
+      }
+    });
 
     if (isFirebaseConfigured && db) {
-
       try {
-
-        await setDoc(doc(db, "users", user.uid), user);
-
-        return user;
-
+        await setDoc(doc(db, "users", cleanUser.uid), cleanUser);
+        return cleanUser;
       } catch (err) {
-
         console.error("Firestore saveUser failed, writing to local storage:", err);
-
         throw err;
-
       }
-
     }
 
     const local = getLocal<AdminUser>("users", DEFAULT_USERS);
 
-    const existingIndex = local.findIndex(u => u.uid === user.uid);
+    const existingIndex = local.findIndex(u => u.uid === cleanUser.uid);
 
     if (existingIndex > -1) {
 
-      local[existingIndex] = user;
+      local[existingIndex] = cleanUser;
 
     } else {
 
-      local.push(user);
+      local.push(cleanUser);
 
     }
 
     setLocal("users", local);
 
-    return user;
+    return cleanUser;
 
   },
 
