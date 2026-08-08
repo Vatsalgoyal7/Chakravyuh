@@ -21,10 +21,13 @@ import {
   ScrollText,
   Archive,
   ToggleRight,
-  Layers
+  Layers,
+  MessageSquare,
+  Contact
 } from "lucide-react";
 import { AdminUser } from "../types";
 import { isFirebaseConfigured } from "../lib/firebase";
+import { canAccessTab, roleDisplayLabel } from "../lib/permissions";
 
 interface AdminLayoutProps {
   user: AdminUser;
@@ -46,25 +49,27 @@ export default function AdminLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const menuItems = [
-    { id: "dashboard",        label: "Dashboard",              icon: LayoutDashboard, roles: ["super_admin", "admin", "coordinator"] },
-    { id: "revenue",          label: "Revenue Monitor",        icon: IndianRupee,     roles: ["super_admin"] },
-    { id: "events",           label: "Events Manager",         icon: Trophy,          roles: ["super_admin"] },
-    { id: "admins",           label: "Admins Manager",         icon: UserCheck,       roles: ["super_admin"] },
-    { id: "coordinators",     label: "Coordinators Manager",   icon: ShieldCheck,     roles: ["super_admin", "admin"] },
-    { id: "registrations",    label: "Registrations Control",  icon: Users,           roles: ["super_admin", "admin", "coordinator"] },
-    { id: "schedules",        label: "Match Schedules",        icon: CalendarDays,    roles: ["super_admin", "admin"] },
-    { id: "notifications",    label: "Announcements",          icon: Megaphone,       roles: ["super_admin", "admin"] },
-    { id: "gallery",          label: "Gallery Upload",         icon: ImageIcon,       roles: ["super_admin", "admin"] },
-    { id: "faq_management",   label: "FAQ Editor",             icon: HelpCircle,      roles: ["super_admin", "admin"] },
-    { id: "rules_contacts",   label: "Rules & Directory",      icon: BookOpen,        roles: ["super_admin"] },
-    { id: "about",            label: "About Section",          icon: Info,            roles: ["super_admin"] },
-    { id: "payment_settings", label: "Payment Settings",       icon: ToggleRight,     roles: ["super_admin"] },
-    { id: "custom_forms",     label: "Custom Forms",           icon: Layers,          roles: ["super_admin"] },
-    { id: "activity_logs",    label: "Audit Logs",             icon: ScrollText,      roles: ["super_admin"] },
-    { id: "backup_reset",     label: "Backup & Reset",         icon: Archive,         roles: ["super_admin"] },
+    { id: "dashboard",        label: "Dashboard",              icon: LayoutDashboard },
+    { id: "chat",             label: "Staff Chat Room",        icon: MessageSquare },
+    { id: "revenue",          label: "Revenue Monitor",        icon: IndianRupee },
+    { id: "events",           label: "Events Manager",         icon: Trophy },
+    { id: "admins",           label: "Admins Manager",         icon: UserCheck },
+    { id: "coordinators",     label: "Coordinators Manager",   icon: ShieldCheck },
+    { id: "staff_directory",  label: "Staff Directory",        icon: Contact },
+    { id: "registrations",    label: "Registrations Control",  icon: Users },
+    { id: "schedules",        label: "Match Schedules",        icon: CalendarDays },
+    { id: "notifications",    label: "Announcements",          icon: Megaphone },
+    { id: "gallery",          label: "Gallery Upload",         icon: ImageIcon },
+    { id: "faq_management",   label: "FAQ Editor",             icon: HelpCircle },
+    { id: "rules_contacts",   label: "Rules & Directory",      icon: BookOpen },
+    { id: "about",            label: "About Section",          icon: Info },
+    { id: "payment_settings", label: "Payment Settings",       icon: ToggleRight },
+    { id: "custom_forms",     label: "Custom Forms",           icon: Layers },
+    { id: "activity_logs",    label: "Audit Logs",             icon: ScrollText },
+    { id: "backup_reset",     label: "Backup & Reset",         icon: Archive },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => item.roles.includes(user.role));
+  const filteredMenuItems = menuItems.filter(item => canAccessTab(user, item.id));
 
   const getRoleBadgeColor = () => {
     if (user.role === "super_admin") return "bg-red-500/10 border-red-500/30 text-red-400";
@@ -73,9 +78,7 @@ export default function AdminLayout({
   };
 
   const getRoleLabel = () => {
-    if (user.role === "super_admin") return "SUPER ADMIN";
-    if (user.role === "admin")       return `ADMIN${user.scope ? ` · ${user.scope.toUpperCase()}` : ""}`;
-    return "COORDINATOR";
+    return roleDisplayLabel(user);
   };
 
   return (
@@ -130,7 +133,7 @@ export default function AdminLayout({
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${getRoleBadgeColor()}`}>
                 {getRoleLabel()}
               </span>
-              {user.role === "coordinator" && user.assignedSports?.length > 0 && (
+              {((user.role === "coordinator") || (user.role === "admin" && (user.adminCategory || "General").toLowerCase() === "sports")) && user.assignedSports?.length > 0 && (
                 <span className="text-[9px] text-gray-500 font-mono">
                   ({user.assignedSports.join(", ")})
                 </span>

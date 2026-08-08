@@ -25,6 +25,8 @@ const RevenueDashboard = lazy(() => import("./components/RevenueDashboard"));
 const ActivityLogsManagement = lazy(() => import("./components/ActivityLogsManagement"));
 const BackupResetManagement = lazy(() => import("./components/BackupResetManagement"));
 const FormsManagement = lazy(() => import("./components/FormsManagement"));
+const StaffChat = lazy(() => import("./components/StaffChat"));
+const StaffDirectory = lazy(() => import("./components/StaffDirectory"));
 
 function RouteLoading() {
   return (
@@ -227,6 +229,11 @@ export default function App() {
     switch (activeTab) {
       case "dashboard":
         return <DashboardOverview user={user!} onNavigate={(tabId) => setActiveTab(tabId)} onUpdateUser={handleUpdateUser} />;
+      case "chat":
+        return <StaffChat currentUser={user!} onUpdateUser={handleUpdateUser} />;
+      case "staff_directory":
+        if (user!.role !== "super_admin") return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
+        return <StaffDirectory actor={user!} />;
       case "events":
         if (!canAccessTab(user!, "events")) return <div className="text-xs text-red-500 font-mono">Access Locked. Super Admin credentials needed.</div>;
         return <EventsManagement />;

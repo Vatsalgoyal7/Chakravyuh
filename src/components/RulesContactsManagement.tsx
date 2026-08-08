@@ -137,12 +137,11 @@ export default function RulesContactsManagement() {
         gender: contactGender,
         imageUrl,
         category: contactCategory,
-        isMainCoordinator: Boolean(contactIsMainCoordinator),
-        enabled: Boolean(contactEnabled),
+        isMainCoordinator: contactIsMainCoordinator,
+        enabled: contactEnabled,
         id: contactEditId || undefined
       };
-      console.log("Saving contact data with explicit boolean conversion:", contactData);
-      console.log("Raw values - contactIsMainCoordinator:", contactIsMainCoordinator, "contactEnabled:", contactEnabled, "contactCategory:", contactCategory);
+      console.log("Saving contact data:", contactData);
       await dbService.saveContact(contactData);
       resetContactForm();
       loadData();
@@ -460,10 +459,7 @@ export default function RulesContactsManagement() {
                     <select
                       className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
                       value={contactCategory}
-                      onChange={(e) => {
-                        console.log("Category changed to:", e.target.value);
-                        setContactCategory(e.target.value);
-                      }}
+                      onChange={(e) => setContactCategory(e.target.value)}
                     >
                       <option value="General Coordinator">General Coordinator</option>
                       <option value="Sports Coordinator">Sports Coordinator</option>
@@ -493,10 +489,7 @@ export default function RulesContactsManagement() {
                       <input
                         type="checkbox"
                         checked={contactIsMainCoordinator}
-                        onChange={(e) => {
-                          console.log("Main Coordinator checkbox changed to:", e.target.checked);
-                          setContactIsMainCoordinator(e.target.checked);
-                        }}
+                        onChange={(e) => setContactIsMainCoordinator(e.target.checked)}
                         className="w-4 h-4 rounded border-gray-700 bg-[#0d0f12] text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
                       />
                       <span className="text-xs text-gray-300 font-semibold">Main Coordinator (Pinned at Top)</span>
@@ -506,10 +499,7 @@ export default function RulesContactsManagement() {
                       <input
                         type="checkbox"
                         checked={contactEnabled}
-                        onChange={(e) => {
-                          console.log("Enabled checkbox changed to:", e.target.checked);
-                          setContactEnabled(e.target.checked);
-                        }}
+                        onChange={(e) => setContactEnabled(e.target.checked)}
                         className="w-4 h-4 rounded border-gray-700 bg-[#0d0f12] text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
                       />
                       <span className="text-xs text-gray-300 font-semibold">Enabled (Visible in Public View)</span>

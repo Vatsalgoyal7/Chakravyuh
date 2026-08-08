@@ -1,4 +1,4 @@
-import { AdminScope, AdminUser, SportEvent } from "../types";
+import { AdminScope, AdminUser, SportEvent, CustomCategory } from "../types";
 
 export type AdminTabId =
   | "dashboard"
@@ -16,9 +16,9 @@ export type AdminTabId =
   | "revenue"
   | "activity_logs"
   | "backup_reset"
-  | "custom_forms";
+  | "chat";
 
-const TAB_ROLES: Record<AdminTabId, UserRole[]> = {
+const TAB_ROLES: Record<AdminTabId, string[]> = {
   dashboard: ["super_admin", "admin", "coordinator"],
   events: ["super_admin"],
   coordinators: ["super_admin", "admin"],
@@ -34,10 +34,28 @@ const TAB_ROLES: Record<AdminTabId, UserRole[]> = {
   revenue: ["super_admin"],
   activity_logs: ["super_admin"],
   backup_reset: ["super_admin"],
-  custom_forms: ["super_admin"],
+  chat: ["super_admin", "admin", "coordinator"]
 };
 
-type UserRole = AdminUser["role"];
+export function getLoadedCategories(): CustomCategory[] {
+  try {
+    const data = localStorage.getItem("chakravyuh_2k26_categories");
+    if (data) return JSON.parse(data);
+  } catch (e) {
+    console.error("Failed to parse categories from localStorage", e);
+  }
+  // Default pre-seeded categories if localStorage is empty
+  return [
+    { id: "general", name: "General", allowedTabs: ["dashboard", "coordinators", "registrations", "schedules", "notifications", "gallery", "faq_management"] },
+    { id: "sports", name: "Sports", allowedTabs: ["dashboard", "coordinators", "registrations", "schedules", "notifications", "gallery"] },
+    { id: "discipline", name: "Discipline", allowedTabs: ["dashboard", "rules_contacts", "notifications", "faq_management"] },
+    { id: "food", name: "Food", allowedTabs: ["dashboard", "notifications", "faq_management"] },
+    { id: "medical", name: "Medical", allowedTabs: ["dashboard", "notifications", "faq_management"] },
+    { id: "logistics", name: "Logistics", allowedTabs: ["dashboard", "schedules", "faq_management"] },
+    { id: "media", name: "Media", allowedTabs: ["dashboard", "gallery", "notifications"] },
+    { id: "technical", name: "Technical", allowedTabs: ["dashboard", "schedules", "faq_management", "events", "gallery", "custom_forms"] }
+  ];
+}
 
 export function resolveAdminScope(user: AdminUser): AdminScope {
   if (user.role !== "admin") return "all";
@@ -45,25 +63,49 @@ export function resolveAdminScope(user: AdminUser): AdminScope {
 }
 
 export function canAccessTab(user: AdminUser, tabId: string): boolean {
-  const roles = TAB_ROLES[tabId as AdminTabId];
-  if (!roles) return false;
-  return roles.includes(user.role);
+  if (user.role === "super_admin") return true;
+  if (user.role === "pending") return false;
+  
+  if (user.role === "coordinator") {
+    // Coordinators can access dashboard, registrations, schedules, notices, and chat
+    return ["dashboard", "registrations", "schedules", "notifications", "chat"].includes(tabId);
+  }
+
+  if (user.role === "admin") {
+    if (tabId === "chat" || tabId === "dashboard") return true;
+    const categoryName = user.adminCategory || "General";
+    const categories = getLoadedCategories();
+    const foundCategory = categories.find(
+      c => c.name.toLowerCase() === categoryName.toLowerCase() || c.id.toLowerCase() === categoryName.toLowerCase()
+    );
+    if (foundCategory) {
+      return foundCategory.allowedTabs.includes(tabId);
+    }
+    // Backward compatibility fallback for legacy admins
+    return ["dashboard", "coordinators", "registrations", "schedules", "notifications", "gallery", "faq_management"].includes(tabId);
+  }
+
+  return false;
 }
 
 export function filterEventsByUserScope(user: AdminUser, events: SportEvent[]): SportEvent[] {
   if (user.role === "super_admin") return events;
   if (user.role === "coordinator") {
-    return events.filter((e) => user.assignedSports.includes(e.id));
+    const assigned = user.assignedSports || [];
+    return events.filter((e) => assigned.includes(e.id));
   }
   if (user.role === "admin") {
-    const scope = resolveAdminScope(user);
-    if (scope === "all") return events;
-    return events.filter((e) => e.type === scope);
+    const category = (user.adminCategory || "General").toLowerCase();
+    if (category === "sports") {
+      const assigned = user.assignedSports || [];
+      if (assigned.length === 0) return events;
+      return events.filter((e) => assigned.includes(e.id));
+    }
+    return events;
   }
   return [];
 }
 
-/** Event IDs used to filter registration queries. undefined = no filter (all events). */
 export function getRegistrationEventFilter(
   user: AdminUser,
   events: SportEvent[]
@@ -71,7 +113,13 @@ export function getRegistrationEventFilter(
   if (user.role === "super_admin") return undefined;
   if (user.role === "coordinator") return user.assignedSports;
   if (user.role === "admin") {
-    return filterEventsByUserScope(user, events).map((e) => e.id);
+    const category = (user.adminCategory || "General").toLowerCase();
+    if (category === "sports") {
+      const assigned = user.assignedSports || [];
+      if (assigned.length === 0) return undefined;
+      return assigned;
+    }
+    return undefined; // no event filter (can see all)
   }
   return [];
 }
@@ -88,30 +136,58 @@ export function coordinatorManagedByUser(
   if (coordinator.role !== "coordinator") return false;
   if (actor.role === "super_admin") return true;
   if (actor.role !== "admin") return false;
-  const scopeIds = new Set(eventIdsInScope(actor, events));
+  
+  const category = (actor.adminCategory || "General").toLowerCase();
+  if (category !== "general" && category !== "sports") return false;
+  if (category === "general") return true;
+
+  const adminSports = actor.assignedSports || [];
+  if (adminSports.length === 0) return true; // Full access fallback
+
   const assigned = coordinator.assignedSports || [];
   if (assigned.length === 0) return false;
-  return assigned.every((id) => scopeIds.has(id));
+  return assigned.every((id) => adminSports.includes(id));
 }
 
 export function canAssignSportToCoordinator(actor: AdminUser, event: SportEvent): boolean {
   if (actor.role === "super_admin") return true;
   if (actor.role !== "admin") return false;
-  const scope = resolveAdminScope(actor);
-  if (scope === "all") return true;
-  return event.type === scope;
+  
+  const category = (actor.adminCategory || "General").toLowerCase();
+  if (category === "general") return true;
+  if (category === "sports") {
+    const adminSports = actor.assignedSports || [];
+    if (adminSports.length === 0) return true;
+    return adminSports.includes(event.id);
+  }
+  return false;
 }
 
 export function canVerifyPayments(user: AdminUser): boolean {
-  return user.role === "super_admin";
+  if (user.role === "super_admin") return true;
+  if (user.role === "admin") {
+    const category = (user.adminCategory || "General").toLowerCase();
+    return category === "general" || category === "sports";
+  }
+  return false;
 }
 
 export function canManageSchedulesFully(user: AdminUser): boolean {
-  return user.role === "super_admin" || user.role === "admin";
+  if (user.role === "super_admin") return true;
+  if (user.role === "admin") {
+    const category = (user.adminCategory || "General").toLowerCase();
+    return category === "general" || category === "technical" || category === "sports";
+  }
+  return false;
 }
 
 export function canManageAnnouncements(user: AdminUser): boolean {
-  return user.role === "super_admin" || user.role === "admin";
+  if (user.role === "super_admin") return true;
+  if (user.role === "admin") {
+    const category = (user.adminCategory || "General").toLowerCase();
+    return category === "general" || category === "discipline" || category === "sports";
+  }
+  return false;
 }
 
 export function parseUserRole(raw: unknown): AdminUser["role"] {
@@ -142,16 +218,20 @@ export function mapFirestoreUserProfile(
     createdAt: (data.createdAt as string) || new Date().toISOString(),
     scope: role === "admin" ? parseAdminScope(data.scope) ?? "all" : parseAdminScope(data.scope),
     suspended: data.suspended === true,
+    adminCategory: data.adminCategory ? String(data.adminCategory) : undefined,
+    phone: data.phone ? String(data.phone) : undefined,
+    rollNo: data.rollNo ? String(data.rollNo) : undefined,
+    branch: data.branch ? String(data.branch) : undefined,
+    residency: (data.residency === "hosteler" || data.residency === "day_scholar") ? data.residency : undefined,
+    roomNo: data.roomNo ? String(data.roomNo) : undefined,
   };
 }
 
 export function roleDisplayLabel(user: AdminUser): string {
   if (user.role === "super_admin") return "SUPER ADMIN";
   if (user.role === "admin") {
-    const scope = resolveAdminScope(user);
-    if (scope === "individual") return "ADMIN · INDIVIDUAL";
-    if (scope === "team") return "ADMIN · TEAM";
-    return "ADMIN · GENERAL";
+    const category = user.adminCategory || "General";
+    return `ADMIN · ${category.toUpperCase()}`;
   }
   if (user.role === "coordinator") return "COORDINATOR";
   return "PENDING";

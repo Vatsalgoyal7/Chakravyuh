@@ -178,11 +178,35 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
     );
   };
 
+  const isSportsAdmin = currentUser.role === "admin" && (currentUser.adminCategory || "General").toLowerCase() === "sports";
+  const adminSports = currentUser.assignedSports || [];
+  const hasSportsRestriction = isSportsAdmin && adminSports.length > 0;
+
+  const allowedEvents = events.filter(e => {
+    if (currentUser.role === 'super_admin') return true;
+    if (currentUser.role === 'admin') {
+      const category = (currentUser.adminCategory || 'General').toLowerCase();
+      if (category === 'general') return true;
+      if (category === 'sports') {
+        if (adminSports.length === 0) return true; // Fallback
+        return adminSports.includes(e.id);
+      }
+    }
+    return false;
+  });
+
   const pendingUsers = users.filter(u => u.role === 'pending');
   // Admin can only see coordinators — super_admin/admin rows are hidden from admin view
   const activeUsers = users.filter(u => {
     if (u.role === 'pending') return false;
-    if (currentUser.role !== 'super_admin') return u.role === 'coordinator';
+    if (currentUser.role !== 'super_admin') {
+      if (u.role !== 'coordinator') return false;
+      if (hasSportsRestriction) {
+        const coordSports = u.assignedSports || [];
+        if (coordSports.length === 0) return true; // Show unassigned so the admin can assign them
+        return coordSports.some(sportId => adminSports.includes(sportId));
+      }
+    }
     return true;
   });
 
@@ -294,7 +318,7 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
                   Authorized Sport Categories (Select multiple)
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 bg-[#0d0f12] p-4 rounded-xl border border-gray-800 max-h-40 overflow-y-auto">
-                  {events.map((sport) => {
+                  {allowedEvents.map((sport) => {
                     const isChecked = inviteSports.includes(sport.id);
                     return (
                       <button
@@ -401,7 +425,7 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
                     Authorized Sport Categories (Select multiple)
                   </label>
                   <div className="grid grid-cols-2 gap-3 bg-[#0d0f12] p-4 rounded-xl border border-gray-800 max-h-40 overflow-y-auto">
-                    {events.map((sport) => {
+                    {allowedEvents.map((sport) => {
                       const isChecked = editSports.includes(sport.id);
                       return (
                         <button

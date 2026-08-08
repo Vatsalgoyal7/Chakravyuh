@@ -25,7 +25,7 @@ export default function NotificationsManagement() {
   // Top Banner / Cash Prize Pool Alert Settings
   const [bannerEnabled, setBannerEnabled] = useState(true);
   const [bannerText, setBannerText] = useState("Rewards And Prizes : Prizes Worth");
-  const [prizePoolAmount, setPrizePoolAmount] = useState(100000);
+  const [prizePoolAmount, setPrizePoolAmount] = useState("100000");
   const [videoUrl, setVideoUrl] = useState("");
   const [videoEnabled, setVideoEnabled] = useState(false);
   const [isSavingBanner, setIsSavingBanner] = useState(false);
@@ -51,7 +51,7 @@ export default function NotificationsManagement() {
       setAnnouncements(data);
       setBannerEnabled(homepage.bannerEnabled ?? true);
       setBannerText(homepage.bannerText ?? "Rewards And Prizes : Prizes Worth");
-      setPrizePoolAmount(homepage.prizePoolAmount ?? 100000);
+      setPrizePoolAmount(String(homepage.prizePoolAmount ?? "100000"));
       setVideoUrl(homepage.videoUrl || "");
       setVideoEnabled(homepage.videoEnabled ?? false);
     } catch (err) {
@@ -239,7 +239,7 @@ export default function NotificationsManagement() {
               className="w-full px-3.5 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
               placeholder="e.g., 100000"
               value={prizePoolAmount}
-              onChange={(e) => setPrizePoolAmount(Number(e.target.value) || 0)}
+              onChange={(e) => setPrizePoolAmount(e.target.value)}
             />
           </div>
         </div>

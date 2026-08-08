@@ -18,7 +18,10 @@ import {
   Mail, 
   Lock,
   UserCheck,
-  UserPlus
+  UserPlus,
+  ShieldAlert,
+  Terminal,
+  BookOpen
 } from "lucide-react";
 import { AdminUser } from "../types";
 
@@ -66,76 +69,10 @@ export default function AuthScreen({
     setSuccessMsg("");
     if (clearExternalError) clearExternalError();
 
-    // Offline sandbox flow if Firebase is not active
+    // Guard: Firebase connection must be active
     if (!isFirebaseConfigured) {
-      setTimeout(() => {
-        setIsLoading(false);
-        if (isSignUp) {
-          // Register a mock user in sandbox
-          const newUser: AdminUser = {
-            uid: `mock_${Date.now()}`,
-            email: email,
-            displayName: displayName || email.split("@")[0].toUpperCase(),
-            role: "coordinator",
-            assignedSports: [],
-            createdAt: new Date().toISOString(),
-          };
-          const existing = JSON.parse(localStorage.getItem("chakravyuh_2k26_users") || "[]");
-          existing.push(newUser);
-          localStorage.setItem("chakravyuh_2k26_users", JSON.stringify(existing));
-          setSuccessMsg("Account request submitted! You can now log in using Sandbox quick logins or credentials.");
-          setIsSignUp(false);
-          setPassword("");
-          setDisplayName("");
-        } else {
-          // Normal sandbox login
-          if (email === "superadmin@imsec.ac.in") {
-            onLoginSuccess({
-              uid: "mock_super_admin",
-              email: "superadmin@imsec.ac.in",
-              displayName: "Vatsal Goyal (Super Admin)",
-              role: "super_admin",
-              assignedSports: [],
-              createdAt: new Date().toISOString(),
-            });
-          } else if (email === "cricket.coord@imsec.ac.in") {
-            onLoginSuccess({
-              uid: "mock_coord_cricket",
-              email: "cricket.coord@imsec.ac.in",
-              displayName: "Prof. Amit Sharma (Cricket Coord)",
-              role: "coordinator",
-              assignedSports: ["cricket_2026"],
-              createdAt: new Date().toISOString(),
-            });
-          } else if (email === "tt.coord@imsec.ac.in") {
-            onLoginSuccess({
-              uid: "mock_coord_tt",
-              email: "tt.coord@imsec.ac.in",
-              displayName: "Prof. Priya Verma (TT Coord)",
-              role: "coordinator",
-              assignedSports: ["table_tennis_singles"],
-              createdAt: new Date().toISOString(),
-            });
-          } else {
-            // Check in localStorage created users first
-            const existing = JSON.parse(localStorage.getItem("chakravyuh_2k26_users") || "[]");
-            const found = existing.find((u: any) => u.email === email);
-            if (found) {
-              onLoginSuccess(found);
-            } else {
-              // Allow custom simulated logins for complete freedom
-              onLoginSuccess({
-                uid: `mock_${Date.now()}`,
-                email: email,
-                displayName: email.split("@")[0].toUpperCase(),
-                role: "coordinator",
-                assignedSports: ["cricket_2026"],
-                createdAt: new Date().toISOString(),
-              });
-            }
-          }
-        }
-      }, 800);
+      setIsLoading(false);
+      setError("Database connection missing. Please configure Firebase.");
       return;
     }
 
@@ -207,40 +144,6 @@ export default function AuthScreen({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickLogin = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("chakravyuh2026");
-    setError("");
-    setSuccessMsg("");
-    if (clearExternalError) clearExternalError();
-    
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      let user: AdminUser;
-      if (demoEmail === "superadmin@imsec.ac.in") {
-        user = {
-          uid: "mock_super_admin",
-          email: "superadmin@imsec.ac.in",
-          displayName: "Vatsal Goyal (Super Admin)",
-          role: "super_admin",
-          assignedSports: [],
-          createdAt: new Date().toISOString(),
-        };
-      } else {
-        user = {
-          uid: "mock_coord_cricket",
-          email: "cricket.coord@imsec.ac.in",
-          displayName: "Prof. Amit Sharma (Cricket Coordinator)",
-          role: "coordinator",
-          assignedSports: ["cricket_2026"],
-          createdAt: new Date().toISOString(),
-        };
-      }
-      onLoginSuccess(user);
-    }, 400);
   };
 
   return (
@@ -406,52 +309,8 @@ export default function AuthScreen({
         )}
 
 
-        {/* Sandbox Live Role Testing (Quick Logins) */}
-        {!isFirebaseConfigured && (
-          <div className="mt-6 pt-5 border-t border-white/[0.04]">
-            <div className="flex items-center gap-2 mb-3 text-gray-400">
-              <Sparkles className="w-4 h-4 text-orange-500" />
-              <h3 className="text-[10px] uppercase tracking-wider font-bold font-mono">
-                Sandbox Role Testing (Quick Logins)
-              </h3>
-            </div>
-            <div className="grid grid-cols-2 gap-3.5">
-              <button
-                onClick={() => handleQuickLogin("superadmin@imsec.ac.in")}
-                className="p-3 bg-[#0c0d10] hover:bg-orange-500/[0.03] border border-white/[0.05] hover:border-orange-500/20 rounded-2xl transition-all text-left group cursor-pointer outline-none"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-white mb-0.5 group-hover:text-orange-500">
-                  <Shield className="w-3.5 h-3.5 text-orange-500" />
-                  <span>Super Admin</span>
-                </div>
-                <p className="text-[9px] text-gray-500 font-mono">Full Access Controls</p>
-              </button>
-
-              <button
-                onClick={() => handleQuickLogin("cricket.coord@imsec.ac.in")}
-                className="p-3 bg-[#0c0d10] hover:bg-orange-500/[0.03] border border-white/[0.05] hover:border-orange-500/20 rounded-2xl transition-all text-left group cursor-pointer outline-none"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold text-white mb-0.5 group-hover:text-orange-500">
-                  <Users className="w-3.5 h-3.5 text-orange-500" />
-                  <span>Coordinator</span>
-                </div>
-                <p className="text-[9px] text-gray-500 font-mono">Cricket Sport Access</p>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Footer Info */}
         <div className="mt-6 text-center text-[10px] text-gray-600 font-mono uppercase tracking-wider">
-          {!isFirebaseConfigured ? (
-            <span className="text-amber-500/70 block mb-3 leading-normal font-bold">
-              ⚡ Local sandbox mode active. Session persistent in client storage.
-            </span>
-          ) : (
-            <span className="text-emerald-500/70 block mb-3 leading-normal font-bold">
-              🛡️ Live production container. Authenticating on official Firestore.
-            </span>
-          )}
           {onBackToPublic && (
             <button
               type="button"

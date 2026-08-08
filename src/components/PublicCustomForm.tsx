@@ -15,8 +15,15 @@ export default function PublicCustomForm({ url, title }: PublicCustomFormProps) 
   const getEmbeddableUrl = (originalUrl: string) => {
     let target = originalUrl.trim();
     if (target.includes("docs.google.com/forms")) {
-      if (target.includes("/viewform") && !target.includes("embedded=true")) {
-        target = target.includes("?") ? `${target}&embedded=true` : `${target}?embedded=true`;
+      // If it contains /edit (e.g. edit link copied by admin), replace /edit with /viewform
+      if (target.includes("/edit")) {
+        target = target.replace(/\/edit(\?.*)?$/, "/viewform");
+      }
+      // Ensure it has embedded=true
+      if (!target.includes("embedded=true")) {
+        target = target.includes("?") 
+          ? `${target.split("?")[0]}?embedded=true` 
+          : `${target}?embedded=true`;
       }
     }
     return target;

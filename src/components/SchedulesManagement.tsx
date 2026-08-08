@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
-import { ScheduleItem, AdminUser } from "../types";
+import { ScheduleItem, AdminUser, SportEvent } from "../types";
 import { canManageSchedulesFully } from "../lib/permissions";
 import { 
   Calendar, 
@@ -13,12 +13,14 @@ import {
   XCircle, 
   Edit3, 
   Trash2, 
-  AlertCircle 
+  AlertCircle,
+  Trophy
 } from "lucide-react";
 
 export default function SchedulesManagement({ user }: { user: AdminUser }) {
   const fullAccess = canManageSchedulesFully(user);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [events, setEvents] = useState<SportEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
   const [timeSlot, setTimeSlot] = useState("");
   const [venue, setVenue] = useState("");
   const [status, setStatus] = useState<'scheduled' | 'live' | 'completed' | 'cancelled'>("scheduled");
+  const [selectedSportId, setSelectedSportId] = useState("");
 
   useEffect(() => {
     loadSchedules();
@@ -38,8 +41,12 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
   async function loadSchedules() {
     setIsLoading(true);
     try {
-      const data = await dbService.getSchedules();
+      const [data, evs] = await Promise.all([
+        dbService.getSchedules(),
+        dbService.getEvents()
+      ]);
       setSchedules(data);
+      setEvents(evs);
     } catch (err) {
       console.error(err);
     } finally {
@@ -54,6 +61,7 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
     setTimeSlot("");
     setVenue("");
     setStatus("scheduled");
+    setSelectedSportId("");
     setIsEditing(false);
     setEditId(null);
   };
@@ -73,6 +81,7 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
     setTimeSlot(item.timeSlot);
     setVenue(item.venue);
     setStatus(item.status);
+    setSelectedSportId((item as any).sportId || "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,7 +97,8 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
       title,
       timeSlot,
       venue,
-      status
+      status,
+      sportId: selectedSportId || undefined
     };
 
     try {
@@ -154,6 +164,28 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
       console.error(err);
     }
   };
+
+  const isSportsAdmin = user.role === "admin" && (user.adminCategory || "General").toLowerCase() === "sports";
+  const hasSportsRestriction = (user.role === "coordinator") || isSportsAdmin;
+  const adminSports = user.assignedSports || [];
+
+  const allowedEvents = events.filter(e => {
+    if (!hasSportsRestriction || adminSports.length === 0) return true;
+    return adminSports.includes(e.id);
+  });
+
+  const filteredSchedules = schedules.filter(item => {
+    if (!hasSportsRestriction || adminSports.length === 0) return true;
+    if ((item as any).sportId) {
+      return adminSports.includes((item as any).sportId);
+    }
+    const lowerTitle = item.title.toLowerCase();
+    return adminSports.some(sId => {
+      const sport = events.find(e => e.id === sId);
+      const sportName = (sport?.title || sId).toLowerCase();
+      return lowerTitle.includes(sportName) || lowerTitle.includes(sId.toLowerCase());
+    });
+  });
 
   if (isLoading) {
     return (
@@ -245,7 +277,7 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
 
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               
               {/* Time slot */}
               <div className="space-y-2">
@@ -271,6 +303,23 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
                   value={venue}
                   onChange={(e) => setVenue(e.target.value)}
                 />
+              </div>
+
+              {/* Associated Sport Category */}
+              <div className="space-y-2">
+                <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Link to Sport Category</label>
+                <select
+                  className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white font-mono"
+                  value={selectedSportId}
+                  onChange={(e) => setSelectedSportId(e.target.value)}
+                >
+                  <option value="">-- Custom / General --</option>
+                  {allowedEvents.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.title}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Status */}
@@ -311,7 +360,7 @@ export default function SchedulesManagement({ user }: { user: AdminUser }) {
 
       {/* Schedules List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {schedules.map((match) => (
+        {filteredSchedules.map((match) => (
           <div key={match.id} className="bg-[#12141a] border border-gray-800/80 p-5 rounded-2xl flex flex-col justify-between group hover:border-gray-700 transition-all">
             
             <div className="space-y-3">
