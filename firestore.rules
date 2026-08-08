@@ -52,7 +52,14 @@ service cloud.firestore {
 
     // Operations chat room rules
     match /messages/{messageId} {
-      allow read, write: if signedIn() && (isSuperAdmin() || isCategoryAdmin() || isCoordinator());
+      allow create: if signedIn() && request.resource.data.senderUid == request.auth.uid;
+      allow read: if signedIn() && (
+        isSuperAdmin() || 
+        resource.data.senderUid == request.auth.uid || 
+        resource.data.recipientId == request.auth.uid || 
+        resource.data.recipientId.endsWith("_group")
+      );
+      allow update, delete: if isSuperAdmin() || (signedIn() && resource.data.senderUid == request.auth.uid);
     }
 
     match /gallery/{imageId} { allow read: if true; allow write: if isSuperAdmin(); }
