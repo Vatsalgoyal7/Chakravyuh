@@ -39,7 +39,7 @@ const TAB_ROLES: Record<AdminTabId, string[]> = {
 
 export function getLoadedCategories(): CustomCategory[] {
   try {
-    const data = localStorage.getItem("chakravyuh_2k26_categories");
+    const data = localStorage.getItem("chakravyuh_2k26_categories") || localStorage.getItem("categories");
     if (data) return JSON.parse(data);
   } catch (e) {
     console.error("Failed to parse categories from localStorage", e);

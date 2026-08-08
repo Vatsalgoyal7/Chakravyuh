@@ -153,6 +153,13 @@ export default function App() {
             localStorage.removeItem("chakravyuh_admin_session");
             setAuthError("Your coordinator request is pending approval from the Super Admin.");
           } else {
+            const categoriesSnapshot = await getDocs(collection(db, "categories"));
+            if (!categoriesSnapshot.empty) {
+              localStorage.setItem(
+                "chakravyuh_2k26_categories",
+                JSON.stringify(categoriesSnapshot.docs.map(category => ({ id: category.id, ...category.data() })))
+              );
+            }
             setUser(adminUser);
             localStorage.setItem("chakravyuh_admin_session", JSON.stringify(adminUser));
           }
