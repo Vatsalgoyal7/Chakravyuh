@@ -3872,6 +3872,47 @@ export const dbService = {
 
   // ── Custom Forms ────────────────────────────────────────────────────────────
 
+  async deletePaymentVerification(verificationId: string): Promise<void> {
+    console.log("deletePaymentVerification called - ID:", verificationId);
+    if (isFirebaseConfigured && db) {
+      try {
+        await deleteDoc(doc(db, "payment_verifications", verificationId));
+        console.log("deletePaymentVerification - Successfully deleted from Firestore");
+      } catch (err) {
+        console.error("Firestore deletePaymentVerification failed:", err);
+        throw err;
+      }
+    } else {
+      const verifications = getLocal<PaymentVerification>("payment_verifications", []);
+      setLocal("payment_verifications", verifications.filter(v => v.id !== verificationId));
+      console.log("deletePaymentVerification - Successfully deleted from local storage");
+    }
+  },
+
+  async resetPaymentVerification(verificationId: string): Promise<void> {
+    console.log("resetPaymentVerification called - ID:", verificationId);
+    const updateData = { status: 'pending' as const, verifiedAt: null, verifiedBy: null, remarks: null };
+    if (isFirebaseConfigured && db) {
+      try {
+        await updateDoc(doc(db, "payment_verifications", verificationId), updateData);
+        console.log("resetPaymentVerification - Successfully reset in Firestore");
+      } catch (err) {
+        console.error("Firestore resetPaymentVerification failed:", err);
+        throw err;
+      }
+    } else {
+      const verifications = getLocal<PaymentVerification>("payment_verifications", []);
+      const index = verifications.findIndex(v => v.id === verificationId);
+      if (index !== -1) {
+        verifications[index] = { ...verifications[index], ...updateData };
+        setLocal("payment_verifications", verifications);
+        console.log("resetPaymentVerification - Successfully reset in local storage");
+      }
+    }
+    const verification = (await this.getPaymentVerifications()).find(v => v.id === verificationId);
+    if (verification) await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_submitted');
+  },
+
   async getCustomForms(): Promise<CustomForm[]> {
     if (isFirebaseConfigured && db) {
       try {

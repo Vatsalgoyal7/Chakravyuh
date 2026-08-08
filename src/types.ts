@@ -581,6 +581,8 @@ export interface PaymentConfig {
 
   qrImageUrl: string;        // URL of uploaded QR image
 
+  qrCodes?: QRCode[];        // Optional per-event-type QR routing profiles
+
 
 
   registrationFee: number;   // Amount in INR
