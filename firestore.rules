@@ -3,15 +3,18 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    
     function isSuperAdmin() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && userDoc().role == 'super_admin'; }
+    function isCategoryAdmin() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && userDoc().role == 'admin'; }
     function isCoordinator() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && userDoc().role == 'coordinator'; }
+    
     function managesEvent(eventId) { return isCoordinator() && eventId in userDoc().assignedSports; }
-    function isAdmin() { return isSuperAdmin() || isCoordinator(); }
+    function isAdmin() { return isSuperAdmin() || isCategoryAdmin() || isCoordinator(); }
 
     match /users/{userId} {
-      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
-      allow create: if signedIn() && request.auth.uid == userId;
-      allow update: if isSuperAdmin() || (request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'updatedAt']));
+      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || isCategoryAdmin());
+      allow create: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow update: if isSuperAdmin() || (request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'updatedAt', 'phone', 'rollNo', 'branch', 'residency', 'roomNo']));
       allow delete: if isSuperAdmin();
     }
 
@@ -26,9 +29,9 @@ service cloud.firestore {
         && request.resource.data.status == 'pending'
         && request.resource.data.trackingCode is string
         && !request.resource.data.keys().hasAny(['approvedBy', 'approvedAt', 'checkedIn', 'checkedInAt']);
-      allow get: if isSuperAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
-      allow list: if isSuperAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
-      allow update, delete: if isSuperAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
+      allow get: if isSuperAdmin() || isCategoryAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
+      allow list: if isSuperAdmin() || isCategoryAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
+      allow update, delete: if isSuperAdmin() || isCategoryAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
     }
 
     match /registration_status/{trackingCode} {
@@ -38,7 +41,18 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/events/$(request.resource.data.eventId))
         && request.resource.data.status == 'pending'
         && request.resource.data.keys().hasOnly(['trackingCode', 'eventId', 'eventTitle', 'sportType', 'teamName', 'status', 'registeredAt', 'checkedIn']);
-      allow update, delete: if isSuperAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
+      allow update, delete: if isSuperAdmin() || isCategoryAdmin() || (isCoordinator() && resource.data.eventId in userDoc().assignedSports);
+    }
+
+    // Dynamic operations categories rules
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // Operations chat room rules
+    match /messages/{messageId} {
+      allow read, write: if signedIn() && (isSuperAdmin() || isCategoryAdmin() || isCoordinator());
     }
 
     match /gallery/{imageId} { allow read: if true; allow write: if isSuperAdmin(); }
@@ -49,7 +63,7 @@ service cloud.firestore {
     match /settings/{settingId} { allow read: if true; allow write: if isSuperAdmin(); }
     match /faqs/{faqId} { allow read: if true; allow write: if isSuperAdmin() || isAdmin(); }
     match /activity_logs/{logId} { allow read: if isSuperAdmin(); allow create: if signedIn(); allow update, delete: if isSuperAdmin(); }
-    match /payment_verifications/{verificationId} { allow read: if isSuperAdmin() || isCoordinator(); allow create: if true; allow update, delete: if isSuperAdmin(); }
+    match /payment_verifications/{verificationId} { allow read: if isSuperAdmin() || isCategoryAdmin() || isCoordinator(); allow create: if true; allow update, delete: if isSuperAdmin(); }
     match /custom_forms/{formId} { allow read: if true; allow write: if isSuperAdmin(); }
     match /about/{docId} { allow read: if true; allow write: if isSuperAdmin(); }
   }
