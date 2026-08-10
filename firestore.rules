@@ -9,6 +9,7 @@ service cloud.firestore {
     function isCoordinator() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && userDoc().role == 'coordinator'; }
     function isGeneralAdmin() { return isCategoryAdmin() && (!('adminCategory' in userDoc()) || userDoc().adminCategory == 'General' || userDoc().adminCategory == 'general'); }
     function isSportsAdmin() { return isCategoryAdmin() && ('adminCategory' in userDoc()) && (userDoc().adminCategory == 'Sports' || userDoc().adminCategory == 'sports'); }
+    function isTechnicalAdmin() { return isCategoryAdmin() && ('adminCategory' in userDoc()) && (userDoc().adminCategory == 'Technical' || userDoc().adminCategory == 'technical'); }
     
     function managesEvent(eventId) { return (isCoordinator() || isSportsAdmin()) && eventId in userDoc().assignedSports; }
     function canManageEventRegistrations(eventId) { return isSuperAdmin() || isGeneralAdmin() || managesEvent(eventId); }
@@ -76,7 +77,7 @@ service cloud.firestore {
       allow read, update, delete: if isSuperAdmin() || isGeneralAdmin() ||
         (isSportsAdmin() && get(/databases/$(database)/documents/registrations/$(resource.data.registrationId)).data.eventId in userDoc().assignedSports);
     }
-    match /custom_forms/{formId} { allow read: if true; allow write: if isSuperAdmin(); }
+    match /custom_forms/{formId} { allow read: if true; allow write: if isSuperAdmin() || isTechnicalAdmin(); }
     match /about/{docId} { allow read: if true; allow write: if isSuperAdmin(); }
   }
 }

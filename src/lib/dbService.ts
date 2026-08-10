@@ -3942,20 +3942,31 @@ export const dbService = {
       iconName: form.iconName,
       createdAt: form.createdAt || now,
     };
+
+    // Clean undefined fields for Firestore compatibility
+    const cleanedItem: any = {};
+    for (const key of Object.keys(saved)) {
+      const val = (saved as any)[key];
+      if (val !== undefined) {
+        cleanedItem[key] = val;
+      }
+    }
+
     if (isFirebaseConfigured && db) {
       try {
         const { setDoc, doc } = await import("firebase/firestore");
-        await setDoc(doc(db, "custom_forms", id), saved, { merge: true });
-        return saved;
+        await setDoc(doc(db, "custom_forms", id), cleanedItem, { merge: true });
+        return cleanedItem as CustomForm;
       } catch (err) {
         console.error("Firestore saveCustomForm failed:", err);
+        throw err;
       }
     }
     const forms = getLocal<CustomForm>("custom_forms", []);
     const idx = forms.findIndex(f => f.id === id);
-    if (idx >= 0) forms[idx] = saved; else forms.push(saved);
+    if (idx >= 0) forms[idx] = cleanedItem as CustomForm; else forms.push(cleanedItem as CustomForm);
     setLocal<CustomForm>("custom_forms", forms);
-    return saved;
+    return cleanedItem as CustomForm;
   },
 
   async deleteCustomForm(id: string): Promise<void> {
@@ -3966,6 +3977,7 @@ export const dbService = {
         return;
       } catch (err) {
         console.error("Firestore deleteCustomForm failed:", err);
+        throw err;
       }
     }
     const forms = getLocal<CustomForm>("custom_forms", []);
