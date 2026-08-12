@@ -17,7 +17,9 @@ import {
   Lock,
   ShieldAlert,
   Terminal,
-  BookOpen
+  BookOpen,
+  Pencil,
+  Save
 } from "lucide-react";
 
 interface AdminsManagementProps {
@@ -58,6 +60,12 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
   
   // Category form state
   const [newCatName, setNewCatName] = useState("");
+
+  // Inline edit category state
+  const [editingCategoryUid, setEditingCategoryUid] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState("General");
+  const [editSports, setEditSports] = useState<string[]>([]);
+  const [editCategorySaving, setEditCategorySaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -134,6 +142,45 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
     setSelectedSports(prev => 
       prev.includes(sportId) ? prev.filter(id => id !== sportId) : [...prev, sportId]
     );
+  };
+
+  const handleToggleEditSport = (sportId: string) => {
+    setEditSports(prev =>
+      prev.includes(sportId) ? prev.filter(id => id !== sportId) : [...prev, sportId]
+    );
+  };
+
+  const openEditCategory = (u: AdminUser) => {
+    setEditingCategoryUid(u.uid);
+    setEditCategory(u.adminCategory || "General");
+    setEditSports(u.assignedSports || []);
+  };
+
+  const handleSaveEditCategory = async (u: AdminUser) => {
+    setEditCategorySaving(true);
+    try {
+      const updated: AdminUser = {
+        ...u,
+        adminCategory: editCategory,
+        assignedSports: editCategory.toLowerCase() === "sports" ? editSports : [],
+      };
+      await dbService.saveUser(updated);
+      await dbService.logActivity({
+        actorUid: actor.uid,
+        actorName: actor.displayName,
+        actorRole: actor.role,
+        action: "user_updated",
+        targetType: "admin",
+        targetId: u.uid,
+        summary: `Changed category of ${u.displayName} to ${editCategory}`,
+      });
+      setEditingCategoryUid(null);
+      loadData();
+    } catch (err) {
+      alert("Failed to update category.");
+    } finally {
+      setEditCategorySaving(false);
+    }
   };
 
   const toggleSuspend = async (user: AdminUser) => {
@@ -421,80 +468,167 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
                   <tbody className="divide-y divide-gray-800/40">
                     {users.map((u) => {
                       const isSports = (u.adminCategory || "General").toLowerCase() === "sports";
+                      const isEditing = editingCategoryUid === u.uid;
                       return (
-                        <tr key={u.uid} className="hover:bg-white/[0.01] transition-all">
-                          <td className="py-4 px-4 font-semibold text-white">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 font-extrabold text-[11px]">
-                                {u.displayName.charAt(0).toUpperCase()}
+                        <React.Fragment key={u.uid}>
+                          <tr className="hover:bg-white/[0.01] transition-all">
+                            <td className="py-4 px-4 font-semibold text-white">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 font-extrabold text-[11px]">
+                                  {u.displayName.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <span>{u.displayName}</span>
+                                  {u.phone && <span className="block text-[9px] text-gray-600 font-mono mt-0.5">{u.phone}</span>}
+                                </div>
                               </div>
-                              <div>
-                                <span>{u.displayName}</span>
-                                {u.phone && <span className="block text-[9px] text-gray-600 font-mono mt-0.5">{u.phone}</span>}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-gray-400 font-mono">{u.email}</td>
-                          <td className="py-4 px-4 font-mono font-bold text-violet-400">
-                            <span className="px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/25">
-                              {u.adminCategory || "General"}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            {isSports ? (
-                              <div className="flex flex-wrap gap-1 max-w-xs">
-                                {(!u.assignedSports || u.assignedSports.length === 0) ? (
-                                  <span className="text-[10px] text-orange-400/70 italic">All Sports (General Fallback)</span>
-                                ) : (
-                                  u.assignedSports.map(id => {
-                                    const sport = events.find(e => e.id === id);
-                                    return (
-                                      <span key={id} className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-gray-300 text-[9px] rounded font-mono font-semibold">
-                                        {sport ? sport.title : id}
-                                      </span>
-                                    );
-                                  })
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-gray-500 italic font-mono text-[10px]">Global Config Scoped</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 font-mono">
-                            {u.suspended ? (
-                              <span className="text-[9px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded font-bold flex items-center gap-1 w-max">
-                                <Ban className="w-3 h-3" /> SUSPENDED
+                            </td>
+                            <td className="py-4 px-4 text-gray-400 font-mono">{u.email}</td>
+                            <td className="py-4 px-4 font-mono font-bold text-violet-400">
+                              <span className="px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/25">
+                                {u.adminCategory || "General"}
                               </span>
-                            ) : (
-                              <span className="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-bold flex items-center gap-1 w-max">
-                                <CheckCircle className="w-3 h-3" /> ACTIVE
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => toggleSuspend(u)}
-                                className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                                  u.suspended 
-                                    ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10" 
-                                    : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-                                }`}
-                              >
-                                {u.suspended ? "Reactivate" : "Suspend"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteAdmin(u)}
-                                className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20 cursor-pointer"
-                                title="Revoke access"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                            </td>
+                            <td className="py-4 px-4">
+                              {isSports ? (
+                                <div className="flex flex-wrap gap-1 max-w-xs">
+                                  {(!u.assignedSports || u.assignedSports.length === 0) ? (
+                                    <span className="text-[10px] text-orange-400/70 italic">All Sports (General Fallback)</span>
+                                  ) : (
+                                    u.assignedSports.map(id => {
+                                      const sport = events.find(e => e.id === id);
+                                      return (
+                                        <span key={id} className="px-2 py-0.5 bg-gray-800 border border-gray-700 text-gray-300 text-[9px] rounded font-mono font-semibold">
+                                          {sport ? sport.title : id}
+                                        </span>
+                                      );
+                                    })
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-500 italic font-mono text-[10px]">Global Config Scoped</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 font-mono">
+                              {u.suspended ? (
+                                <span className="text-[9px] text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded font-bold flex items-center gap-1 w-max">
+                                  <Ban className="w-3 h-3" /> SUSPENDED
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-bold flex items-center gap-1 w-max">
+                                  <CheckCircle className="w-3 h-3" /> ACTIVE
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  title="Edit Category"
+                                  onClick={() => isEditing ? setEditingCategoryUid(null) : openEditCategory(u)}
+                                  className={`p-1.5 rounded-lg transition-all border cursor-pointer ${
+                                    isEditing
+                                      ? "bg-orange-500/10 border-orange-500/40 text-orange-400"
+                                      : "text-gray-400 hover:bg-violet-500/10 border-transparent hover:border-violet-500/20 hover:text-violet-400"
+                                  }`}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSuspend(u)}
+                                  className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                    u.suspended 
+                                      ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10" 
+                                      : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                                  }`}
+                                >
+                                  {u.suspended ? "Reactivate" : "Suspend"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAdmin(u)}
+                                  className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-all border border-transparent hover:border-red-500/20 cursor-pointer"
+                                  title="Revoke access"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* ── Inline Category Editor Row ── */}
+                          {isEditing && (
+                            <tr className="bg-[#0d0f12]">
+                              <td colSpan={6} className="px-4 pb-4 pt-2">
+                                <div className="border border-orange-500/20 bg-orange-500/[0.04] rounded-xl p-4 space-y-3 animate-in slide-in-from-top-1 duration-200">
+                                  <p className="text-[10px] uppercase tracking-wider font-bold text-orange-400 font-mono">Change Category Role — {u.displayName}</p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {categories.map((c) => (
+                                      <button
+                                        key={c.id}
+                                        type="button"
+                                        onClick={() => setEditCategory(c.name)}
+                                        className={`px-3 py-2 rounded-xl text-xs font-mono border text-center transition-all cursor-pointer ${
+                                          editCategory.toLowerCase() === c.name.toLowerCase()
+                                            ? "border-orange-500 bg-orange-500/10 text-orange-400 font-bold"
+                                            : "border-gray-800 bg-[#0b0c0e] text-gray-400 hover:border-gray-700 hover:text-white"
+                                        }`}
+                                      >
+                                        {c.name}
+                                      </button>
+                                    ))}
+                                  </div>
+
+                                  {editCategory.toLowerCase() === "sports" && (
+                                    <div className="space-y-2">
+                                      <p className="text-[10px] uppercase tracking-wider text-gray-500 font-mono font-bold">Restrict Sports Scope</p>
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 bg-[#0b0c0e] p-3 rounded-xl border border-gray-800 max-h-36 overflow-y-auto">
+                                        {events.map((sport) => {
+                                          const checked = editSports.includes(sport.id);
+                                          return (
+                                            <button
+                                              key={sport.id}
+                                              type="button"
+                                              onClick={() => handleToggleEditSport(sport.id)}
+                                              className={`flex items-center gap-2 p-2 rounded-lg text-left text-xs transition-all border outline-none cursor-pointer ${
+                                                checked
+                                                  ? "bg-orange-500/10 border-orange-500/30 text-orange-400 font-semibold"
+                                                  : "bg-transparent border-gray-800 hover:border-gray-700 text-gray-400"
+                                              }`}
+                                            >
+                                              <Trophy className={`w-3.5 h-3.5 ${checked ? "text-orange-500" : "text-gray-600"}`} />
+                                              <span className="truncate">{sport.title}</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="flex gap-2 pt-1">
+                                    <button
+                                      type="button"
+                                      disabled={editCategorySaving}
+                                      onClick={() => handleSaveEditCategory(u)}
+                                      className="px-4 py-1.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-black font-extrabold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60 transition-all"
+                                    >
+                                      <Save className="w-3.5 h-3.5" />
+                                      {editCategorySaving ? "Saving..." : "Save Category"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingCategoryUid(null)}
+                                      className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs cursor-pointer font-bold transition-all"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
