@@ -212,7 +212,11 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
     // ───────────────── ADMIN WORKFLOW ─────────────────
     else if (currentUser.role === "admin") {
       chatRooms.push({ id: "admins_group", name: "All Admins Chat", type: "group", info: "Managers community" });
-      chatRooms.push({ id: "mock_super_admin", name: "Super Admin (Vatsal Goyal)", type: "private", roleLabel: "SUPER ADMIN", info: "superadmin@imsec.ac.in" });
+      const actualSuperAdmin = users.find(u => u.role === "super_admin");
+      const superAdminId = actualSuperAdmin ? actualSuperAdmin.uid : "mock_super_admin";
+      const superAdminName = actualSuperAdmin ? actualSuperAdmin.displayName : "Super Admin (Vatsal Goyal)";
+      const superAdminEmail = actualSuperAdmin ? actualSuperAdmin.email : "superadmin@imsec.ac.in";
+      chatRooms.push({ id: superAdminId, name: superAdminName, type: "private", roleLabel: "SUPER ADMIN", info: superAdminEmail });
 
       const adminCategory = (currentUser.adminCategory || "General").toLowerCase();
       const adminSports = currentUser.assignedSports || [];
@@ -253,7 +257,11 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
     
     // ───────────────── COORDINATOR WORKFLOW ─────────────────
     else if (currentUser.role === "coordinator") {
-      chatRooms.push({ id: "mock_super_admin", name: "Super Admin (Vatsal Goyal)", type: "private", roleLabel: "SUPER ADMIN", info: "superadmin@imsec.ac.in" });
+      const actualSuperAdmin = users.find(u => u.role === "super_admin");
+      const superAdminId = actualSuperAdmin ? actualSuperAdmin.uid : "mock_super_admin";
+      const superAdminName = actualSuperAdmin ? actualSuperAdmin.displayName : "Super Admin (Vatsal Goyal)";
+      const superAdminEmail = actualSuperAdmin ? actualSuperAdmin.email : "superadmin@imsec.ac.in";
+      chatRooms.push({ id: superAdminId, name: superAdminName, type: "private", roleLabel: "SUPER ADMIN", info: superAdminEmail });
 
       const coordSports = currentUser.assignedSports || [];
 

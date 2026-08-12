@@ -55,12 +55,7 @@ service cloud.firestore {
     // Operations chat room rules
     match /messages/{messageId} {
       allow create: if signedIn() && request.resource.data.senderUid == request.auth.uid;
-      allow read: if signedIn() && (
-        isSuperAdmin() || 
-        resource.data.senderUid == request.auth.uid || 
-        resource.data.recipientId == request.auth.uid || 
-        resource.data.recipientId.endsWith("_group")
-      );
+      allow read: if signedIn() && isAdmin();
       allow update, delete: if isSuperAdmin() || (signedIn() && resource.data.senderUid == request.auth.uid);
     }
 
