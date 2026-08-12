@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { dbService } from "../lib/dbService";
 import { AdminUser, Registration } from "../types";
-import { Download, Archive, AlertTriangle, FileSpreadsheet, FileText, Database } from "lucide-react";
+import { Download, Archive, AlertTriangle, FileSpreadsheet, FileText, Database, MessageSquare, Trash2 } from "lucide-react";
 
 interface BackupResetManagementProps {
   actor: AdminUser;
@@ -215,7 +215,12 @@ function openPdfWindow(backup: Record<string, unknown>, date: string) {
 
 export default function BackupResetManagement({ actor }: BackupResetManagementProps) {
   const [busy, setBusy] = useState(false);
-  const [lastArchiveKey, setLastArchiveKey] = useState<string | null>(null);
+  const [lastArchiveKey, setLastArchiveKey] = useState("");
+
+  // Chat history reset state
+  const [chatResetScope, setChatResetScope] = useState<"admins_group" | "coordinators_group" | "dms" | "all">("admins_group");
+  const [chatResetBusy, setChatResetBusy] = useState(false);
+  const [chatResetMsg, setChatResetMsg] = useState<string | null>(null);
 
   // ── JSON full backup ──────────────────────────────────────────────────────
   const handleExportJson = async () => {
@@ -312,6 +317,36 @@ export default function BackupResetManagement({ actor }: BackupResetManagementPr
     }
   };
 
+  const handleClearChat = async () => {
+    const scopeLabels: Record<string, string> = {
+      admins_group: "All Admins Group Chat",
+      coordinators_group: "All Coordinators Group Chat",
+      dms: "All Private DMs",
+      all: "ALL Chat History (Groups + DMs)",
+    };
+    const label = scopeLabels[chatResetScope];
+    const typed = prompt(`Type CLEAR to permanently delete ${label}:`);
+    if (typed !== "CLEAR") { setChatResetMsg("Reset cancelled."); return; }
+    setChatResetBusy(true);
+    setChatResetMsg(null);
+    try {
+      const count = await dbService.clearChatHistory(chatResetScope);
+      await dbService.logActivity({
+        actorUid: actor.uid,
+        actorName: actor.displayName,
+        actorRole: actor.role,
+        action: "backup_exported",
+        targetType: "system",
+        summary: `Cleared chat history — scope: ${chatResetScope}, deleted ${count} messages`,
+      });
+      setChatResetMsg(`✓ Done — ${count} message${count !== 1 ? "s" : ""} deleted from ${label}.`);
+    } catch (err) {
+      setChatResetMsg("Failed to clear chat history. Check console.");
+    } finally {
+      setChatResetBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -399,6 +434,65 @@ export default function BackupResetManagement({ actor }: BackupResetManagementPr
             Open PDF Report
           </button>
         </div>
+      </div>
+
+      {/* Chat History Reset */}
+      <div className="bg-[#12141a] border border-amber-900/40 rounded-2xl p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <MessageSquare className="w-8 h-8 text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-bold text-white flex items-center gap-2">
+              Clear Chat History
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
+            </h3>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              Permanently delete messages from selected channel. This action cannot be undone. All staff will see an empty chat immediately.
+            </p>
+          </div>
+        </div>
+
+        {/* Scope Selector */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {([
+            { id: "admins_group",        label: "Admins Group" },
+            { id: "coordinators_group",  label: "Coordinators Group" },
+            { id: "dms",                 label: "All Private DMs" },
+            { id: "all",                 label: "Everything" },
+          ] as const).map(opt => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => { setChatResetScope(opt.id); setChatResetMsg(null); }}
+              className={`px-3 py-2 rounded-xl text-xs font-mono border text-center transition-all cursor-pointer ${
+                chatResetScope === opt.id
+                  ? opt.id === "all"
+                    ? "border-red-500 bg-red-500/10 text-red-400 font-bold"
+                    : "border-amber-500 bg-amber-500/10 text-amber-400 font-bold"
+                  : "border-gray-800 bg-[#0d0f12] text-gray-400 hover:border-gray-700 hover:text-white"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {chatResetMsg && (
+          <p className={`text-xs font-mono px-3 py-2 rounded-xl border ${
+            chatResetMsg.startsWith("✓")
+              ? "bg-emerald-950/30 border-emerald-500/20 text-emerald-400"
+              : "bg-red-950/30 border-red-500/20 text-red-400"
+          }`}>{chatResetMsg}</p>
+        )}
+
+        <button
+          type="button"
+          disabled={chatResetBusy}
+          onClick={handleClearChat}
+          className="px-6 py-2.5 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all cursor-pointer"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          {chatResetBusy ? "Clearing..." : "Clear Chat History"}
+        </button>
       </div>
 
       {/* Season reset */}

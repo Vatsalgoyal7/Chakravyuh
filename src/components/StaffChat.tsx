@@ -19,7 +19,9 @@ import {
   Home,
   Building2,
   Sparkles,
-  MapPin
+  MapPin,
+  Bell,
+  BellOff
 } from "lucide-react";
 
 interface StaffChatProps {
@@ -54,16 +56,59 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
   const [profileResidency, setProfileResidency] = useState<'hosteler' | 'day_scholar'>("day_scholar");
   const [profileRoomNo, setProfileRoomNo] = useState("");
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  // Notification preference (persisted per user)
+  const notifKey = `chakravyuh_notif_${currentUser.uid}`;
+  const [notifEnabled, setNotifEnabled] = useState<boolean>(
+    () => localStorage.getItem(notifKey) !== "off"
+  );
 
-  // Initialize and subscribe to real-time messages
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastMsgCount = useRef<number>(0);
+  const lastMsgTimestamp = useRef<string>("");
+
+  // Initialize, request notification permission, and subscribe to messages
   useEffect(() => {
     loadInitialData();
+
+    // Request browser notification permission on first load
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
     const unsubscribe = dbService.subscribeToMessages((msgs) => {
+      // Trigger browser notification for new messages from others
+      if (
+        notifEnabled &&
+        "Notification" in window &&
+        Notification.permission === "granted" &&
+        msgs.length > lastMsgCount.current &&
+        lastMsgCount.current > 0
+      ) {
+        const newest = msgs[msgs.length - 1];
+        if (
+          newest &&
+          newest.senderUid !== currentUser.uid &&
+          newest.timestamp !== lastMsgTimestamp.current
+        ) {
+          const roomLabel =
+            newest.recipientId === "admins_group" ? "All Admins Group" :
+            newest.recipientId === "coordinators_group" ? "All Coordinators Group" :
+            "Private Message";
+          new Notification("Chakravyuh 2K26 — New Message", {
+            body: `${newest.senderName}: ${newest.text.slice(0, 80)}`,
+            icon: "/vite.svg",
+            tag: `chakravyuh-${newest.recipientId}`,
+            silent: false,
+          });
+          lastMsgTimestamp.current = newest.timestamp;
+        }
+      }
+      lastMsgCount.current = msgs.length;
       setMessages(msgs);
     });
     return () => unsubscribe();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifEnabled]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -350,8 +395,35 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
       
       {/* ── LEFT ROOMS PANEL ── */}
       <aside className={`w-full md:w-80 border-r border-gray-800 flex flex-col bg-[#111317] shrink-0 ${showSidebarMobile ? "flex" : "hidden md:flex"}`}>
+
+        {/* Notification Toggle Bar */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800/60 bg-[#0d0f12] shrink-0">
+          <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-gray-500">Staff Chat Room</span>
+          <button
+            type="button"
+            title={notifEnabled ? "Notifications ON — click to mute" : "Notifications OFF — click to enable"}
+            onClick={() => {
+              const next = !notifEnabled;
+              setNotifEnabled(next);
+              localStorage.setItem(notifKey, next ? "on" : "off");
+              if (next && "Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+              }
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+              notifEnabled
+                ? "bg-orange-500/10 border-orange-500/25 text-orange-400 hover:bg-orange-500/20"
+                : "bg-gray-800/50 border-gray-700 text-gray-500 hover:text-gray-300"
+            }`}
+          >
+            {notifEnabled ? <Bell className="w-3 h-3" /> : <BellOff className="w-3 h-3" />}
+            {notifEnabled ? "Notif ON" : "Notif OFF"}
+          </button>
+        </div>
+
         {/* Super admin toggle column headers */}
         {currentUser.role === "super_admin" && (
+
           <div className="flex border-b border-gray-800 shrink-0">
             <button
               onClick={() => {

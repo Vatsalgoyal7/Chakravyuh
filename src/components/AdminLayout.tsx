@@ -29,7 +29,9 @@ import {
   Building2,
   Home,
   Save,
-  Edit3
+  Edit3,
+  Bell,
+  BellOff
 } from "lucide-react";
 import { AdminUser } from "../types";
 import { isFirebaseConfigured } from "../lib/firebase";
@@ -62,6 +64,12 @@ export default function AdminLayout({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
+
+  // Notification preference toggle in profile modal
+  const notifKey = `chakravyuh_notif_${user.uid}`;
+  const [notifOn, setNotifOn] = useState<boolean>(
+    () => localStorage.getItem(notifKey) !== "off"
+  );
 
   // Profile form fields (mirrors Staff Identity Card)
   const [profileName, setProfileName] = useState(user.displayName);
@@ -330,6 +338,36 @@ export default function AdminLayout({
                 {profileMsg && (
                   <p className="text-xs font-mono px-3 py-2 rounded-xl border bg-emerald-950/30 border-emerald-500/20 text-emerald-400">{profileMsg}</p>
                 )}
+
+                {/* Notification toggle */}
+                <div className="flex items-center justify-between px-1 py-2 border-t border-gray-800 mt-1">
+                  <div className="flex items-center gap-2">
+                    {notifOn ? <Bell className="w-3.5 h-3.5 text-orange-400" /> : <BellOff className="w-3.5 h-3.5 text-gray-500" />}
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-300 font-mono">Chat Notifications</p>
+                      <p className="text-[9px] text-gray-500 font-mono">{notifOn ? "Enabled — you'll get alerts" : "Muted — no alerts"}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !notifOn;
+                      setNotifOn(next);
+                      localStorage.setItem(notifKey, next ? "on" : "off");
+                      if (next && "Notification" in window && Notification.permission === "default") {
+                        Notification.requestPermission();
+                      }
+                    }}
+                    className={`relative w-10 h-5 rounded-full transition-all cursor-pointer border ${
+                      notifOn ? "bg-orange-500 border-orange-400" : "bg-gray-700 border-gray-600"
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      notifOn ? "left-5" : "left-0.5"
+                    }`} />
+                  </button>
+                </div>
+
                 <button
                   onClick={() => setIsEditingProfile(true)}
                   className="w-full mt-2 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"

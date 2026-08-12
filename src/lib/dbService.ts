@@ -2878,6 +2878,42 @@ export const dbService = {
     };
   },
 
+  // ── Clear Chat History (Super Admin) ─────────────────────────────────────
+  async clearChatHistory(scope: "admins_group" | "coordinators_group" | "dms" | "all"): Promise<number> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const snap = await getDocs(collection(db, "messages"));
+        const toDelete = snap.docs.filter(d => {
+          const r = d.data().recipientId as string | undefined;
+          if (scope === "all") return true;
+          if (scope === "dms") return r && r !== "admins_group" && r !== "coordinators_group";
+          return r === scope;
+        });
+        const batchSize = 400;
+        for (let i = 0; i < toDelete.length; i += batchSize) {
+          const batch = writeBatch(db);
+          toDelete.slice(i, i + batchSize).forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+        return toDelete.length;
+      } catch (err) {
+        console.error("clearChatHistory Firestore failed:", err);
+        throw err;
+      }
+    }
+    // localStorage fallback
+    const all = getLocal<ChatMessage[]>("chat_messages") ?? [];
+    const keep = scope === "all" ? [] : all.filter(m => {
+      const r = m.recipientId;
+      if (scope === "dms") return r === "admins_group" || r === "coordinators_group";
+      return r !== scope;
+    });
+    setLocal("chat_messages", keep);
+    const cleared = all.length - keep.length;
+    chatSubscribers.forEach(cb => cb(keep));
+    return cleared;
+  },
+
   // ── Homepage Video Settings ──────────────────────────────────────────────
 
   async getHomepageSettings(): Promise<{ videoUrl: string; videoEnabled: boolean; bannerEnabled: boolean; bannerText: string; prizePoolAmount: string }> {

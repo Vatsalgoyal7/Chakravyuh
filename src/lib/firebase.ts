@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getMessaging, getToken, isSupported } from "firebase/messaging";
 
 // Safe loading of environment variables
 const firebaseConfig = {
@@ -19,10 +20,11 @@ export const isFirebaseConfigured = !!(
   firebaseConfig.projectId
 );
 
-let app;
-let auth;
-let db;
-let storage;
+let app: any;
+let auth: any;
+let db: any;
+let storage: any;
+let messaging: any = null;
 
 if (isFirebaseConfigured) {
   try {
@@ -30,6 +32,23 @@ if (isFirebaseConfigured) {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+
+    // Initialize FCM if browser supports it
+    isSupported().then((supported) => {
+      if (supported) {
+        messaging = getMessaging(app);
+        // Register service worker and send config to it
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker
+            .register("/firebase-messaging-sw.js")
+            .then((reg) => {
+              reg.active?.postMessage({ type: "FIREBASE_CONFIG", config: firebaseConfig });
+            })
+            .catch(() => {});
+        }
+      }
+    }).catch(() => {});
+
     console.log("Firebase initialized successfully.");
   } catch (error) {
     console.error("Firebase initialization failed:", error);
@@ -40,5 +59,4 @@ if (isFirebaseConfigured) {
   );
 }
 
-export { app, auth, db, storage };
-
+export { app, auth, db, storage, messaging, getToken, isSupported, firebaseConfig };
