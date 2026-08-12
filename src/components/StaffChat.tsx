@@ -40,6 +40,7 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
   const [inputText, setInputText] = useState("");
   const [filterType, setFilterType] = useState<"all" | "group" | "private">("all");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showSidebarMobile, setShowSidebarMobile] = useState(true);
 
   // Profile Drawer State
   const [drawerUser, setDrawerUser] = useState<AdminUser | null>(null);
@@ -348,7 +349,7 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
     <div className="h-[calc(100vh-140px)] border border-gray-800 bg-[#0d0f12] rounded-2xl overflow-hidden flex relative">
       
       {/* ── LEFT ROOMS PANEL ── */}
-      <aside className="w-80 border-r border-gray-800 flex flex-col bg-[#111317]">
+      <aside className={`w-full md:w-80 border-r border-gray-800 flex flex-col bg-[#111317] shrink-0 ${showSidebarMobile ? "flex" : "hidden md:flex"}`}>
         {/* Super admin toggle column headers */}
         {currentUser.role === "super_admin" && (
           <div className="flex border-b border-gray-800 shrink-0">
@@ -421,7 +422,10 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
             return (
               <button
                 key={room.id}
-                onClick={() => setSelectedRoom(room.id)}
+                onClick={() => {
+                  setSelectedRoom(room.id);
+                  setShowSidebarMobile(false);
+                }}
                 className={`w-full p-3.5 flex items-start gap-3 transition-all text-left outline-none cursor-pointer ${
                   isSelected ? "bg-orange-500/[0.04] border-l-2 border-orange-500" : "hover:bg-white/[0.01]"
                 }`}
@@ -475,15 +479,28 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
       </aside>
 
       {/* ── RIGHT MESSAGES CHAT STREAM ── */}
-      <main className="flex-1 flex flex-col bg-[#0a0b0d] relative">
+      <main className={`flex-1 flex flex-col bg-[#0a0b0d] relative ${!showSidebarMobile ? "flex" : "hidden md:flex"}`}>
         {/* Chat Thread Header */}
         <header className="p-4 border-b border-gray-800 bg-[#111317]/80 backdrop-blur-md sticky top-0 flex items-center justify-between shrink-0">
-          <div>
-            <h3 className="text-xs font-mono font-bold text-white tracking-wider flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {activeRoomData.name}
-            </h3>
-            <p className="text-[10px] text-gray-500 mt-0.5">{activeRoomData.info}</p>
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile back arrow */}
+            <button
+              type="button"
+              onClick={() => setShowSidebarMobile(true)}
+              className="md:hidden p-1.5 hover:bg-gray-800 text-gray-400 hover:text-white rounded-lg transition-colors cursor-pointer shrink-0"
+              title="Back to chat list"
+            >
+              <svg className="w-4 h-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            <div className="min-w-0">
+              <h3 className="text-xs font-mono font-bold text-white tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="truncate">{activeRoomData.name}</span>
+              </h3>
+              <p className="text-[10px] text-gray-500 mt-0.5 truncate">{activeRoomData.info}</p>
+            </div>
           </div>
           
           {/* If private message, let you open contact profile */}
