@@ -38,6 +38,8 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
   const [activeChatTab, setActiveChatTab] = useState<"admins" | "coordinators">("admins");
   const [selectedRoom, setSelectedRoom] = useState<string>("admins_group");
   const [inputText, setInputText] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "group" | "private">("all");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Profile Drawer State
   const [drawerUser, setDrawerUser] = useState<AdminUser | null>(null);
@@ -320,7 +322,25 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
     });
   };
 
+  const getOnlineStatus = (roomId: string, roomType: "group" | "private") => {
+    if (roomType === "group") return null;
+    if (roomId === currentUser.uid) return "online";
+    const userMsgs = messages.filter(m => m.senderUid === roomId);
+    if (userMsgs.length > 0) {
+      const latestMsg = userMsgs[userMsgs.length - 1];
+      const diffMs = Date.now() - new Date(latestMsg.timestamp).getTime();
+      if (diffMs < 15 * 60 * 1000) {
+        return "online";
+      }
+    }
+    return "recent";
+  };
+
   const activeRooms = getChatRooms();
+  const filteredRooms = activeRooms.filter(room => {
+    if (filterType === "all") return true;
+    return room.type === filterType;
+  });
   const activeRoomData = activeRooms.find(r => r.id === selectedRoom) || { name: "System Log Thread", info: "Broadcasting room" };
   const filteredMessages = getFilteredMessages();
 
@@ -362,21 +382,42 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
         )}
 
         {/* User Search Input */}
-        <div className="p-4 border-b border-gray-800 shrink-0 relative">
-          <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-          <input
-            type="text"
-            placeholder="Search channels & users..."
-            className="w-full pl-9 pr-4 py-2 bg-[#08090c] border border-gray-800 focus:border-orange-500/40 rounded-xl text-xs text-white placeholder-gray-600 outline-none transition-all font-mono"
-            value={userSearchQuery}
-            onChange={(e) => setUserSearchQuery(e.target.value)}
-          />
+        <div className="p-4 border-b border-gray-800 shrink-0 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+            <input
+              type="text"
+              placeholder="Search channels & users..."
+              className="w-full pl-9 pr-4 py-2 bg-[#08090c] border border-gray-800 focus:border-orange-500/40 rounded-xl text-xs text-white placeholder-gray-600 outline-none transition-all font-mono"
+              value={userSearchQuery}
+              onChange={(e) => setUserSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          {/* Quick Filter Buttons */}
+          <div className="flex gap-1.5 bg-[#0a0b0d] p-1 rounded-lg border border-gray-850">
+            {(["all", "group", "private"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFilterType(t)}
+                className={`flex-1 py-1 text-[10px] font-bold font-mono uppercase rounded-md transition-all cursor-pointer ${
+                  filterType === t
+                    ? "bg-orange-500/10 border border-orange-500/20 text-orange-400 font-extrabold"
+                    : "text-gray-500 hover:text-gray-300"
+                }`}
+              >
+                {t === "all" ? "All" : t === "group" ? "Groups" : "DMs"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Rooms List */}
         <div className="flex-1 overflow-y-auto divide-y divide-gray-900/30">
-          {activeRooms.map((room) => {
+          {filteredRooms.map((room) => {
             const isSelected = room.id === selectedRoom;
+            const status = getOnlineStatus(room.id, room.type);
             return (
               <button
                 key={room.id}
@@ -385,12 +426,17 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
                   isSelected ? "bg-orange-500/[0.04] border-l-2 border-orange-500" : "hover:bg-white/[0.01]"
                 }`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-extrabold text-[11px] shrink-0 ${
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-extrabold text-[11px] shrink-0 relative ${
                   room.type === "group" 
                     ? "bg-orange-500/10 border border-orange-500/20 text-orange-400"
                     : "bg-violet-500/10 border border-violet-500/20 text-violet-400"
                 }`}>
                   {room.type === "group" ? <Users className="w-4 h-4" /> : room.name.charAt(0).toUpperCase()}
+                  {room.type === "private" && (
+                    <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#111317] ${
+                      status === "online" ? "bg-emerald-500 animate-pulse" : "bg-amber-500/50"
+                    }`} />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1">
@@ -406,7 +452,7 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
               </button>
             );
           })}
-          {activeRooms.length === 0 && (
+          {filteredRooms.length === 0 && (
             <p className="text-xs text-gray-600 italic p-6 text-center font-mono">No matching contacts found.</p>
           )}
         </div>
@@ -512,7 +558,35 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
         </div>
 
         {/* Input Bar */}
-        <form onSubmit={handleSendMessage} className="p-4 bg-[#111317]/50 border-t border-gray-800 shrink-0 flex items-center gap-2">
+        <form onSubmit={handleSendMessage} className="p-4 bg-[#111317]/50 border-t border-gray-800 shrink-0 flex items-center gap-2 relative">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2.5 bg-[#08090c] hover:bg-gray-800 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-orange-500 rounded-xl cursor-pointer transition-all outline-none"
+              title="Add Emoji"
+            >
+              <Smile className="w-4 h-4" />
+            </button>
+            {showEmojiPicker && (
+              <div className="absolute bottom-14 left-0 bg-[#0d0e12] border border-gray-800 rounded-2xl p-3 shadow-2xl z-50 w-52 grid grid-cols-4 gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                {["🏆", "⚽", "🏏", "🏀", " volleyball", "🏐", "🏓", "📣", "🔥", "👍", "👏", "🙌", "🚀", "📢", "🎯", "🎉"].map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      setInputText(prev => prev + (emoji === " volleyball" ? "🏐" : emoji));
+                      setShowEmojiPicker(false);
+                    }}
+                    className="text-base hover:bg-white/[0.05] p-1.5 rounded-lg transition-colors cursor-pointer text-center outline-none"
+                  >
+                    {emoji === " volleyball" ? "🏐" : emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <input
             type="text"
             placeholder={`Post message to ${activeRoomData.name}...`}
