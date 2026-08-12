@@ -23,11 +23,18 @@ import {
   ToggleRight,
   Layers,
   MessageSquare,
-  Contact
+  Contact,
+  Phone,
+  Mail,
+  Building2,
+  Home,
+  Save,
+  Edit3
 } from "lucide-react";
 import { AdminUser } from "../types";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { canAccessTab, roleDisplayLabel } from "../lib/permissions";
+import { dbService } from "../lib/dbService";
 
 interface AdminLayoutProps {
   user: AdminUser;
@@ -36,6 +43,7 @@ interface AdminLayoutProps {
   setActiveTab: (tab: string) => void;
   children: React.ReactNode;
   onGoToPublic?: () => void;
+  onUpdateUser?: (u: AdminUser) => void;
 }
 
 export default function AdminLayout({ 
@@ -44,9 +52,62 @@ export default function AdminLayout({
   activeTab, 
   setActiveTab, 
   children,
-  onGoToPublic
+  onGoToPublic,
+  onUpdateUser
 }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // ── My Profile Modal State ───────────────────────────────────────────────
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<string | null>(null);
+
+  // Profile form fields (mirrors Staff Identity Card)
+  const [profileName, setProfileName] = useState(user.displayName);
+  const [profilePhone, setProfilePhone] = useState(user.phone || "");
+  const [profileRollNo, setProfileRollNo] = useState(user.rollNo || "");
+  const [profileBranch, setProfileBranch] = useState(user.branch || "");
+  const [profileResidency, setProfileResidency] = useState<'hosteler' | 'day_scholar'>(user.residency || "day_scholar");
+  const [profileRoomNo, setProfileRoomNo] = useState(user.roomNo || "");
+
+  const openProfileModal = () => {
+    // Reset fields to latest user values every time modal opens
+    setProfileName(user.displayName);
+    setProfilePhone(user.phone || "");
+    setProfileRollNo(user.rollNo || "");
+    setProfileBranch(user.branch || "");
+    setProfileResidency(user.residency || "day_scholar");
+    setProfileRoomNo(user.roomNo || "");
+    setIsEditingProfile(false);
+    setProfileMsg(null);
+    setShowProfileModal(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileMsg(null);
+    try {
+      const updated: AdminUser = {
+        ...user,
+        displayName: profileName.trim() || user.displayName,
+        phone: profilePhone.trim() || undefined,
+        rollNo: profileRollNo.trim() || undefined,
+        branch: profileBranch.trim() || undefined,
+        residency: profileResidency,
+        roomNo: profileResidency === "hosteler" ? profileRoomNo.trim() || undefined : undefined,
+      };
+      const saved = await dbService.saveUser(updated);
+      if (onUpdateUser) onUpdateUser(saved);
+      setProfileMsg("Profile saved and synced to Staff Directory!");
+      setIsEditingProfile(false);
+    } catch (err) {
+      setProfileMsg("Failed to save. Please try again.");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const menuItems = [
     { id: "dashboard",        label: "Dashboard",              icon: LayoutDashboard },
@@ -141,9 +202,13 @@ export default function AdminLayout({
             </div>
           </div>
 
-          <div className="w-9 h-9 bg-orange-600/10 border border-orange-500/20 rounded-full flex items-center justify-center text-orange-400 font-bold text-sm">
+          <button
+            onClick={openProfileModal}
+            title="My Profile"
+            className="w-9 h-9 bg-orange-600/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 rounded-full flex items-center justify-center text-orange-400 font-bold text-sm transition-all cursor-pointer"
+          >
             {user.displayName.charAt(0).toUpperCase()}
-          </div>
+          </button>
 
           {onGoToPublic && (
             <button
@@ -165,6 +230,117 @@ export default function AdminLayout({
           </button>
         </div>
       </header>
+
+      {/* ── MY PROFILE MODAL ─────────────────────────────────────────────── */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowProfileModal(false)}>
+          <div
+            className="w-full max-w-md bg-[#111317] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+            style={{ animation: "fadeUp 0.22s cubic-bezier(.22,1,.36,1) both" }}
+          >
+            <style>{`@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }`}</style>
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+              <div>
+                <h3 className="text-sm font-black text-white font-mono uppercase tracking-wider">Staff Identity Card</h3>
+                <p className="text-[10px] text-gray-500 mt-0.5">Your profile syncs directly to Staff Directory</p>
+              </div>
+              <button onClick={() => setShowProfileModal(false)} className="p-1.5 hover:bg-gray-800 text-gray-500 hover:text-white rounded-lg cursor-pointer transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Avatar + Role */}
+            <div className="flex flex-col items-center pt-6 pb-4 px-6">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500/20 to-amber-600/20 border border-orange-500/30 flex items-center justify-center text-orange-400 text-2xl font-black mb-3">
+                {user.displayName.charAt(0).toUpperCase()}
+              </div>
+              <p className="text-sm font-bold text-white">{user.displayName}</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">{user.email}</p>
+              <span className="mt-2 px-3 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wider border bg-orange-500/10 border-orange-500/20 text-orange-400 uppercase">
+                {roleDisplayLabel(user)}
+              </span>
+            </div>
+
+            {/* Body — View or Edit */}
+            {isEditingProfile ? (
+              <form onSubmit={handleSaveProfile} className="px-6 pb-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-[9px] uppercase tracking-wider text-gray-400 font-bold font-mono">Display Name</label>
+                  <input className="w-full px-3 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500/60 rounded-xl text-xs text-white outline-none font-mono transition-colors" value={profileName} onChange={e => setProfileName(e.target.value)} required />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[9px] uppercase tracking-wider text-gray-400 font-bold font-mono">Mobile Number</label>
+                  <input className="w-full px-3 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500/60 rounded-xl text-xs text-white outline-none font-mono transition-colors" placeholder="e.g. 9876543210" value={profilePhone} onChange={e => setProfilePhone(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="block text-[9px] uppercase tracking-wider text-gray-400 font-bold font-mono">Roll Number</label>
+                    <input className="w-full px-3 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500/60 rounded-xl text-xs text-white outline-none font-mono transition-colors" placeholder="e.g. E26CS001" value={profileRollNo} onChange={e => setProfileRollNo(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-[9px] uppercase tracking-wider text-gray-400 font-bold font-mono">Branch</label>
+                    <input className="w-full px-3 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500/60 rounded-xl text-xs text-white outline-none font-mono transition-colors" placeholder="e.g. CSE" value={profileBranch} onChange={e => setProfileBranch(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[9px] uppercase tracking-wider text-gray-400 font-bold font-mono">Campus Residency</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setProfileResidency("day_scholar")} className={`flex-1 py-2 text-xs rounded-xl border font-mono transition-all cursor-pointer ${profileResidency === "day_scholar" ? "bg-orange-500/10 border-orange-500/40 text-orange-400" : "bg-transparent border-gray-800 text-gray-500 hover:text-gray-300"}`}>Day Scholar</button>
+                    <button type="button" onClick={() => setProfileResidency("hosteler")} className={`flex-1 py-2 text-xs rounded-xl border font-mono transition-all cursor-pointer ${profileResidency === "hosteler" ? "bg-orange-500/10 border-orange-500/40 text-orange-400" : "bg-transparent border-gray-800 text-gray-500 hover:text-gray-300"}`}>Hosteler</button>
+                  </div>
+                </div>
+                {profileResidency === "hosteler" && (
+                  <div className="space-y-1">
+                    <label className="block text-[9px] uppercase tracking-wider text-gray-400 font-bold font-mono">Hostel Room No.</label>
+                    <input className="w-full px-3 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500/60 rounded-xl text-xs text-white outline-none font-mono transition-colors" placeholder="e.g. B-302" value={profileRoomNo} onChange={e => setProfileRoomNo(e.target.value)} />
+                  </div>
+                )}
+                {profileMsg && (
+                  <p className={`text-xs font-mono px-3 py-2 rounded-xl border ${ profileMsg.includes("Failed") ? "bg-red-950/30 border-red-500/20 text-red-400" : "bg-emerald-950/30 border-emerald-500/20 text-emerald-400" }`}>{profileMsg}</p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <button type="submit" disabled={profileSaving} className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-black font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 transition-all">
+                    <Save className="w-3.5 h-3.5" />
+                    {profileSaving ? "Saving..." : "Save & Sync to Directory"}
+                  </button>
+                  <button type="button" onClick={() => setIsEditingProfile(false)} className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs cursor-pointer font-bold transition-all">Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <div className="px-6 pb-6 space-y-3">
+                {[
+                  { icon: Phone, label: "Mobile Contact", value: user.phone || "—" },
+                  { icon: Mail, label: "Official Email", value: user.email },
+                  { icon: Building2, label: "Roll No & Branch", value: user.rollNo ? `${user.rollNo}${user.branch ? ` (${user.branch})` : ""}` : "—" },
+                  { icon: Home, label: "Campus Residency", value: user.residency === "hosteler" ? `Hosteler${user.roomNo ? ` · Room ${user.roomNo}` : ""}` : user.residency === "day_scholar" ? "Day Scholar" : "—" },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-start gap-3 text-xs">
+                    <div className="p-1.5 rounded-lg bg-gray-800/60 shrink-0 mt-0.5">
+                      <Icon className="w-3.5 h-3.5 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-gray-500 font-mono">{label}</p>
+                      <p className="text-gray-200 font-medium mt-0.5 font-mono">{value}</p>
+                    </div>
+                  </div>
+                ))}
+                {profileMsg && (
+                  <p className="text-xs font-mono px-3 py-2 rounded-xl border bg-emerald-950/30 border-emerald-500/20 text-emerald-400">{profileMsg}</p>
+                )}
+                <button
+                  onClick={() => setIsEditingProfile(true)}
+                  className="w-full mt-2 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Edit3 className="w-3.5 h-3.5" /> Edit My Profile
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1 relative">
         <aside 

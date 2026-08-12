@@ -321,6 +321,7 @@ export default function App() {
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   onGoToPublic={() => navigate("/")}
+                  onUpdateUser={handleUpdateUser}
                 >
                   <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {renderTabContent()}
