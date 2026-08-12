@@ -358,7 +358,7 @@ export default function AuthScreen({
 
           {/* College name */}
           <div>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-orange-500/70 font-bold font-mono mb-3">
+            <p className="text-xs uppercase tracking-[0.22em] text-orange-400 font-bold font-mono mb-3">
               IMS Engineering College, Ghaziabad
             </p>
 
@@ -371,7 +371,7 @@ export default function AuthScreen({
               />
             </h1>
 
-            <p className="text-sm text-gray-500 mt-4 leading-relaxed max-w-xs">
+            <p className="text-sm text-gray-300 mt-4 leading-relaxed max-w-xs">
               The official administrative portal for managing Chakravyuh 2K26 — sports events, registrations, coordinators & more.
             </p>
           </div>
@@ -391,14 +391,14 @@ export default function AuthScreen({
                 <div className="p-1.5 rounded-lg bg-orange-500/10 border border-orange-500/15">
                   <Icon className="w-3 h-3 text-orange-500" />
                 </div>
-                <span className="text-[11px] text-gray-500 font-mono">{text}</span>
+                <span className="text-xs text-gray-300 font-sans font-medium">{text}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Bottom */}
-        <div className="text-[9px] text-gray-700 font-mono uppercase tracking-wider">
+        <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
           © 2026 Chakravyuh · IMSEC · All Rights Reserved
         </div>
       </div>
@@ -427,7 +427,7 @@ export default function AuthScreen({
             <h1 className="text-xl font-black tracking-widest text-white font-mono uppercase">
               CHAKRAVYUH <span className="text-orange-500">2K26</span>
             </h1>
-            <p className="text-[9px] text-gray-600 mt-1 font-mono uppercase tracking-wider">
+            <p className="text-xs text-gray-400 mt-1 font-mono uppercase tracking-wider">
               IMS Engineering College, Ghaziabad
             </p>
           </div>
@@ -437,7 +437,7 @@ export default function AuthScreen({
             <h2 className="text-xl font-black text-white font-mono uppercase tracking-wider">
               {isSignUp ? "Request Access" : "Admin Sign In"}
             </h2>
-            <p className="text-[10px] text-gray-600 font-mono mt-1">
+            <p className="text-sm text-gray-400 font-sans mt-1">
               {isSignUp
                 ? "Pending approval from Super Admin"
                 : "Authorized personnel only"}
@@ -445,9 +445,9 @@ export default function AuthScreen({
           </div>
 
           {/* Info banner */}
-          <div className="au-d2 mb-5 rounded-xl border border-orange-500/15 bg-orange-500/[0.05] px-4 py-3 flex items-start gap-2.5">
-            <ShieldAlert className="w-3.5 h-3.5 text-orange-500/60 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-orange-200/50 leading-relaxed font-mono">
+          <div className="au-d2 mb-5 rounded-xl border border-orange-500/25 bg-orange-500/[0.08] px-4 py-3 flex items-start gap-2.5">
+            <ShieldAlert className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-orange-200 leading-relaxed font-sans">
               {isSignUp
                 ? "Register a new coordinator profile. A Super Admin must approve your access."
                 : "Admin accounts are provisioned by the Super Admin. Public registration is disabled."}
@@ -496,7 +496,7 @@ export default function AuthScreen({
             {/* Name - signup only */}
             {isSignUp && (
               <div className="space-y-1.5">
-                <label className="block text-[9px] uppercase tracking-[0.18em] text-gray-500 font-bold font-mono">
+                <label className="block text-xs uppercase tracking-[0.15em] text-gray-300 font-bold font-sans">
                   Full Name
                 </label>
                 <div className="au-input-wrap relative">
@@ -515,7 +515,7 @@ export default function AuthScreen({
 
             {/* Email */}
             <div className="space-y-1.5">
-              <label className="block text-[9px] uppercase tracking-[0.18em] text-gray-500 font-bold font-mono">
+              <label className="block text-xs uppercase tracking-[0.15em] text-gray-300 font-bold font-sans">
                 Email Address
               </label>
               <div className="au-input-wrap relative">
@@ -533,7 +533,7 @@ export default function AuthScreen({
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label className="block text-[9px] uppercase tracking-[0.18em] text-gray-500 font-bold font-mono">
+              <label className="block text-xs uppercase tracking-[0.15em] text-gray-300 font-bold font-sans">
                 Password
               </label>
               <div className="au-input-wrap relative">
@@ -568,7 +568,7 @@ export default function AuthScreen({
               )}
             </button>
 
-            {/* Toggle */}
+            {/* Toggle — boxed button */}
             <button
               type="button"
               onClick={() => {
@@ -577,9 +577,9 @@ export default function AuthScreen({
                 setSuccessMsg("");
                 if (clearExternalError) clearExternalError();
               }}
-              className="w-full text-center text-[10px] text-orange-500/60 hover:text-orange-400 font-bold transition-colors cursor-pointer outline-none pt-1 flex items-center justify-center gap-1.5 group"
+              className="w-full py-2.5 mt-1 rounded-xl border border-orange-500/30 bg-orange-500/[0.06] hover:bg-orange-500/[0.12] hover:border-orange-500/50 text-orange-300 hover:text-orange-200 font-semibold text-xs transition-all cursor-pointer outline-none flex items-center justify-center gap-2 font-sans"
             >
-              <UserPlus className="w-3 h-3 transition-transform group-hover:scale-110" />
+              <UserPlus className="w-3.5 h-3.5" />
               <span>
                 {isSignUp
                   ? "Already have an account? Sign In"
@@ -592,9 +592,9 @@ export default function AuthScreen({
           {isFirebaseConfigured && !isSignUp && (
             <div className="mt-5 au-d4">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-px flex-1 bg-white/[0.06]" />
-                <span className="text-[9px] uppercase tracking-wider text-gray-700 font-mono">or</span>
-                <div className="h-px flex-1 bg-white/[0.06]" />
+                <div className="h-px flex-1 bg-white/[0.08]" />
+                <span className="text-xs uppercase tracking-wider text-gray-400 font-mono">or</span>
+                <div className="h-px flex-1 bg-white/[0.08]" />
               </div>
               <button
                 type="button"
@@ -613,15 +613,15 @@ export default function AuthScreen({
             </div>
           )}
 
-          {/* Back to public */}
+          {/* Back to public — boxed button */}
           {onBackToPublic && (
-            <div className="mt-6 pt-4 border-t border-white/[0.04] text-center au-d5">
+            <div className="mt-4 au-d5">
               <button
                 type="button"
                 onClick={onBackToPublic}
-                className="au-back text-[9px] text-gray-700 font-mono uppercase tracking-[0.15em] flex items-center justify-center gap-1.5 mx-auto cursor-pointer outline-none group"
+                className="w-full py-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20 text-gray-300 hover:text-white font-semibold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer outline-none font-sans"
               >
-                <span className="transition-transform group-hover:-translate-x-1">←</span>
+                <span>←</span>
                 <span>Return to Public Fest Website</span>
               </button>
             </div>
