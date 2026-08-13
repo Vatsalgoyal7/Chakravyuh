@@ -2781,17 +2781,32 @@ export const dbService = {
   },
 
   async getCategories(): Promise<CustomCategory[]> {
+    let list: CustomCategory[] = [];
     if (isFirebaseConfigured && db) {
       try {
         const snapshot = await getDocs(collection(db, "categories"));
         if (!snapshot.empty) {
-          return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomCategory));
+          list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomCategory));
         }
       } catch (err) {
         console.error("Firestore getCategories failed, reading local storage:", err);
+        list = getLocal<CustomCategory>("categories", DEFAULT_CATEGORIES);
       }
+    } else {
+      list = getLocal<CustomCategory>("categories", DEFAULT_CATEGORIES);
     }
-    return getLocal<CustomCategory>("categories", DEFAULT_CATEGORIES);
+
+    // Always ensure all DEFAULT_CATEGORIES are preserved
+    const merged = [...DEFAULT_CATEGORIES];
+    list.forEach(c => {
+      const existsIndex = merged.findIndex(m => m.id === c.id || m.name.toLowerCase() === c.name.toLowerCase());
+      if (existsIndex > -1) {
+        merged[existsIndex] = c;
+      } else {
+        merged.push(c);
+      }
+    });
+    return merged;
   },
 
   async saveCategory(category: CustomCategory): Promise<CustomCategory> {
@@ -3954,11 +3969,9 @@ export const dbService = {
       try {
         const { getDocs, collection, query, orderBy } = await import("firebase/firestore");
         const snap = await getDocs(query(collection(db, "custom_forms"), orderBy("order", "asc")));
-        if (!snap.empty) {
-          return snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomForm));
-        }
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as CustomForm));
       } catch (err) {
-        console.error("Firestore getCustomForms failed:", err);
+        console.error("Firestore getCustomForms failed, falling back to local storage:", err);
       }
     }
     return getLocal<CustomForm>("custom_forms", []);
@@ -3992,7 +4005,6 @@ export const dbService = {
       try {
         const { setDoc, doc } = await import("firebase/firestore");
         await setDoc(doc(db, "custom_forms", id), cleanedItem, { merge: true });
-        return cleanedItem as CustomForm;
       } catch (err) {
         console.error("Firestore saveCustomForm failed:", err);
         throw err;
@@ -4010,7 +4022,6 @@ export const dbService = {
       try {
         const { deleteDoc, doc } = await import("firebase/firestore");
         await deleteDoc(doc(db, "custom_forms", id));
-        return;
       } catch (err) {
         console.error("Firestore deleteCustomForm failed:", err);
         throw err;

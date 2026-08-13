@@ -38,14 +38,7 @@ const TAB_ROLES: Record<AdminTabId, string[]> = {
 };
 
 export function getLoadedCategories(): CustomCategory[] {
-  try {
-    const data = localStorage.getItem("chakravyuh_2k26_categories") || localStorage.getItem("categories");
-    if (data) return JSON.parse(data);
-  } catch (e) {
-    console.error("Failed to parse categories from localStorage", e);
-  }
-  // Default pre-seeded categories if localStorage is empty
-  return [
+  const core = [
     { id: "general", name: "General", allowedTabs: ["dashboard", "coordinators", "registrations", "schedules", "notifications", "gallery", "faq_management"] },
     { id: "sports", name: "Sports", allowedTabs: ["dashboard", "coordinators", "registrations", "schedules", "notifications", "gallery"] },
     { id: "discipline", name: "Discipline", allowedTabs: ["dashboard", "rules_contacts", "notifications", "faq_management"] },
@@ -55,6 +48,27 @@ export function getLoadedCategories(): CustomCategory[] {
     { id: "media", name: "Media", allowedTabs: ["dashboard", "gallery", "notifications"] },
     { id: "technical", name: "Technical", allowedTabs: ["dashboard", "schedules", "faq_management", "events", "gallery", "custom_forms"] }
   ];
+  let list: CustomCategory[] = [];
+  try {
+    const data = localStorage.getItem("chakravyuh_2k26_categories") || localStorage.getItem("categories");
+    if (data) list = JSON.parse(data);
+  } catch (e) {
+    console.error("Failed to parse categories from localStorage", e);
+  }
+
+  if (list.length === 0) return core;
+
+  // Merge so core default categories are always preserved
+  const merged = [...core];
+  list.forEach(c => {
+    const existsIndex = merged.findIndex(m => m.id === c.id || m.name.toLowerCase() === c.name.toLowerCase());
+    if (existsIndex > -1) {
+      merged[existsIndex] = c;
+    } else {
+      merged.push(c);
+    }
+  });
+  return merged;
 }
 
 export function resolveAdminScope(user: AdminUser): AdminScope {
