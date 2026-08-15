@@ -16,7 +16,7 @@ service cloud.firestore {
     function isAdmin() { return isSuperAdmin() || isCategoryAdmin() || isCoordinator(); }
 
     match /users/{userId} {
-      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdmin() || isCategoryAdmin());
+      allow read: if signedIn();
       allow create: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
       allow update: if isSuperAdmin() || (request.auth.uid == userId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'updatedAt', 'phone', 'rollNo', 'branch', 'residency', 'roomNo']));
       allow delete: if isSuperAdmin();
