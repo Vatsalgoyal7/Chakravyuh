@@ -44,6 +44,7 @@ const AVAILABLE_TABS = [
 
 export default function AdminsManagement({ actor }: AdminsManagementProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<AdminUser[]>([]);
   const [categories, setCategories] = useState<CustomCategory[]>([]);
   const [events, setEvents] = useState<SportEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,6 +81,7 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
         dbService.getEvents()
       ]);
       setUsers(allUsers.filter((u) => u.role === "admin"));
+      setPendingUsers(allUsers.filter((u) => u.role === "pending"));
       setCategories(allCats);
       setEvents(allEvents);
       
@@ -91,6 +93,33 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
       setIsLoading(false);
     }
   }
+
+  const handleApprovePending = async (user: AdminUser, role: 'super_admin' | 'admin' | 'coordinator') => {
+    const updatedUser: AdminUser = {
+      ...user,
+      role: role,
+      assignedSports: []
+    };
+    try {
+      await dbService.saveUser(updatedUser);
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to approve access request.");
+    }
+  };
+
+  const handleRejectPending = async (uid: string) => {
+    if (confirm("Reject and delete this access request?")) {
+      try {
+        await dbService.deleteUser(uid);
+        loadData();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to reject access request.");
+      }
+    }
+  };
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,6 +367,62 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
 
       {activeSubTab === "admins" ? (
         <div className="space-y-6">
+
+          {/* Pending Access Requests Banner for SuperAdmin */}
+          {pendingUsers.length > 0 && (
+            <div className="bg-[#1c1214] border border-red-500/30 p-5 rounded-2xl space-y-4">
+              <div className="flex items-center gap-2.5 text-red-400">
+                <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                <div>
+                  <h3 className="text-xs uppercase font-mono tracking-wider font-bold">
+                    Pending Access Requests ({pendingUsers.length})
+                  </h3>
+                  <p className="text-[10px] text-gray-400 leading-normal">
+                    Users registered on the portal awaiting administrative clearance.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {pendingUsers.map((pUser) => (
+                  <div key={pUser.uid} className="bg-[#120f10] border border-red-500/10 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-white font-mono">{pUser.displayName}</h4>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{pUser.email}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => handleApprovePending(pUser, "admin")}
+                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
+                      >
+                        Approve as Admin
+                      </button>
+                      <button
+                        onClick={() => handleApprovePending(pUser, "coordinator")}
+                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-black font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
+                      >
+                        Approve as Coordinator
+                      </button>
+                      <button
+                        onClick={() => handleApprovePending(pUser, "super_admin")}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
+                      >
+                        Approve as Super Admin
+                      </button>
+                      <button
+                        onClick={() => handleRejectPending(pUser.uid)}
+                        className="p-2 hover:bg-red-500/10 text-gray-500 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20 cursor-pointer"
+                        title="Reject Request"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <h3 className="text-xs uppercase font-mono tracking-wider font-bold text-gray-400">
               Middle-Tier Staff Profiles
@@ -357,7 +442,10 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
           {showForm && (
             <form onSubmit={handleCreateAdmin} className="bg-[#12141a] border border-gray-800 rounded-2xl p-6 space-y-5 animate-in slide-in-from-top-2 duration-300">
               <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-                <h4 className="text-xs uppercase tracking-wider font-bold text-orange-500 font-mono">Provision Admin Credentials</h4>
+                <div>
+                  <h4 className="text-xs uppercase tracking-wider font-bold text-orange-500 font-mono">Provision Admin Credentials</h4>
+                  <p className="text-[10px] text-gray-500 mt-0.5 font-mono">Pre-provision an account. The user will complete sign-up on the portal to activate their password.</p>
+                </div>
                 <button type="button" onClick={() => setShowForm(false)} className="text-gray-500 hover:text-white p-1">
                   <X className="w-4.5 h-4.5" />
                 </button>

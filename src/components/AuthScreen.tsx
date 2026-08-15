@@ -6,7 +6,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import {
   Shield,
@@ -106,21 +106,48 @@ export default function AuthScreen({
     try {
       if (auth) {
         if (isSignUp) {
+          const emailKey = email.trim().toLowerCase();
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           if (userCredential.user) {
             await updateProfile(userCredential.user, { displayName: displayName });
-            const newUserDoc = {
-              uid: userCredential.user.uid,
-              email,
-              displayName: displayName || email.split("@")[0].toUpperCase(),
-              role: "pending",
-              assignedSports: [],
-              createdAt: new Date().toISOString(),
-            };
             if (db) {
-              await setDoc(doc(db, "users", userCredential.user.uid), newUserDoc);
+              // Check if pre-provisioned user document exists for this email
+              const usersColl = collection(db, "users");
+              const q = query(usersColl, where("email", "==", emailKey));
+              const querySnap = await getDocs(q);
+
+              if (!querySnap.empty) {
+                // User was pre-provisioned by SuperAdmin/Admin!
+                const preProvDoc = querySnap.docs[0];
+                const preProvData = preProvDoc.data();
+                const updatedUserDoc = {
+                  ...preProvData,
+                  uid: userCredential.user.uid,
+                  email: emailKey,
+                  displayName: displayName.trim() || preProvData.displayName || emailKey.split("@")[0].toUpperCase(),
+                  updatedAt: new Date().toISOString(),
+                };
+                await setDoc(doc(db, "users", userCredential.user.uid), updatedUserDoc);
+                if (preProvDoc.id !== userCredential.user.uid) {
+                  await deleteDoc(doc(db, "users", preProvDoc.id));
+                }
+                setSuccessMsg("Account successfully activated! Logging in...");
+              } else {
+                // Self-registration -> pending request
+                const newUserDoc = {
+                  uid: userCredential.user.uid,
+                  email: emailKey,
+                  displayName: displayName.trim() || emailKey.split("@")[0].toUpperCase(),
+                  role: "pending",
+                  assignedSports: [],
+                  createdAt: new Date().toISOString(),
+                };
+                await setDoc(doc(db, "users", userCredential.user.uid), newUserDoc);
+                setSuccessMsg("Account registered! Access request is pending approval from the Super Admin.");
+              }
+            } else {
+              setSuccessMsg("Account registered!");
             }
-            setSuccessMsg("Account registered! Access request is pending approval from the Super Admin.");
             setIsSignUp(false);
             setPassword("");
             setDisplayName("");
