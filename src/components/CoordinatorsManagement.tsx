@@ -94,7 +94,6 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
       assignedSports: inviteRole === "coordinator" ? inviteSports : [],
       createdAt: new Date().toISOString(),
       ...(inviteRole === "admin" ? { scope: inviteScope } : {}),
-      ...(inviteSetTempPwd && inviteTempPassword ? { tempPassword: inviteTempPassword } : {}),
     };
 
     try {
@@ -393,12 +392,13 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
             <div className="space-y-3 border border-gray-800 rounded-xl p-4 bg-[#0d0f12]">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Set Temporary Password <span className="text-gray-600">(Optional)</span></p>
-                  <p className="text-[9px] text-gray-600 mt-0.5 font-mono">If set, the user can sign in directly without completing the signup flow.</p>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Secure account setup</p>
+                  <p className="text-[9px] text-gray-600 mt-0.5 font-mono">Passwords are never stored here. The staff member must use Request Access and await approval.</p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setInviteSetTempPwd(!inviteSetTempPwd); setInviteTempPassword(""); }}
+                  onClick={() => {}}
+                  disabled
                   className={`relative w-10 h-5 rounded-full transition-all cursor-pointer border ${
                     inviteSetTempPwd ? "bg-orange-500 border-orange-400" : "bg-gray-700 border-gray-600"
                   }`}

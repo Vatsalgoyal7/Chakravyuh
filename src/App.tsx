@@ -4,7 +4,7 @@ import PublicWebsite from "./components/PublicWebsite";
 import { AdminUser } from "./types";
 import { mapFirestoreUserProfile, canAccessTab } from "./lib/permissions";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "./lib/firebase";
 
 const AuthScreen = lazy(() => import("./components/AuthScreen"));
@@ -84,85 +84,23 @@ export default function App() {
               data as Record<string, unknown>
             );
           } else {
-            // Check pre-provisioning by email
-            const emailKey = (firebaseUser.email || "").toLowerCase();
-            const usersColl = collection(db, "users");
-
-            let preProvData: any = null;
-            let preProvDocId = "";
-
-            // 1. Try direct fetch by email key (fastest & most reliable)
-            if (emailKey) {
-              try {
-                const directDocSnap = await getDoc(doc(db, "users", emailKey));
-                if (directDocSnap.exists()) {
-                  preProvData = directDocSnap.data();
-                  preProvDocId = directDocSnap.id;
-                }
-              } catch (e) {
-                console.warn("Direct email doc lookup fallback:", e);
-              }
-            }
-
-            // 2. Fallback to query by email field
-            if (!preProvData && emailKey) {
-              try {
-                const q = query(usersColl, where("email", "==", emailKey));
-                const querySnap = await getDocs(q);
-                if (!querySnap.empty) {
-                  preProvData = querySnap.docs[0].data();
-                  preProvDocId = querySnap.docs[0].id;
-                }
-              } catch (e) {
-                console.warn("Query email lookup fallback:", e);
-              }
-            }
-
-            if (preProvData) {
-              adminUser = mapFirestoreUserProfile(
-                firebaseUser.uid,
-                firebaseUser.email || emailKey,
-                preProvData.displayName || firebaseUser.displayName || "",
-                preProvData as Record<string, unknown>
-              );
-              // Write new UID-keyed document
-              await setDoc(doc(db, "users", firebaseUser.uid), adminUser);
-              // Clean up email-keyed document if different
-              if (preProvDocId && preProvDocId !== firebaseUser.uid) {
-                await deleteDoc(doc(db, "users", preProvDocId));
-              }
-            } else {
-              // Check if database is empty to bootstrap first Super Admin
-              const allUsersSnap = await getDocs(collection(db, "users"));
-              if (allUsersSnap.empty) {
-                adminUser = {
-                  uid: firebaseUser.uid,
-                  email: firebaseUser.email || "",
-                  displayName: firebaseUser.displayName || "Chief Super Admin",
-                  role: "super_admin",
-                  assignedSports: [],
-                  createdAt: new Date().toISOString(),
-                };
-                await setDoc(doc(db, "users", firebaseUser.uid), adminUser);
-              } else {
-                // Auto-create pending coordinator request
-                adminUser = {
-                  uid: firebaseUser.uid,
-                  email: firebaseUser.email || "",
-                  displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0].toUpperCase() || "New Coordinator",
-                  role: "pending",
-                  assignedSports: [],
-                  createdAt: new Date().toISOString(),
-                };
-                await setDoc(doc(db, "users", firebaseUser.uid), adminUser);
-                await signOut(auth);
-                setUser(null);
-                localStorage.removeItem("chakravyuh_admin_session");
-                setAuthError("Your account has been registered! Access request is pending approval from the Super Admin.");
-                setIsInitializing(false);
-                return;
-              }
-            }
+            // A missing profile can only become a pending request; the first Super Admin
+            // must be seeded through Firebase Admin tooling during deployment.
+            adminUser = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || "",
+              displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0].toUpperCase() || "New Coordinator",
+              role: "pending",
+              assignedSports: [],
+              createdAt: new Date().toISOString(),
+            };
+            await setDoc(doc(db, "users", firebaseUser.uid), adminUser);
+            await signOut(auth);
+            setUser(null);
+            localStorage.removeItem("chakravyuh_admin_session");
+            setAuthError("Your account has been registered! Access request is pending approval from the Super Admin.");
+            setIsInitializing(false);
+            return;
           }
 
           if (adminUser.suspended) {

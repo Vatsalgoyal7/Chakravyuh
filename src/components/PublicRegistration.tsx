@@ -640,15 +640,14 @@ export default function PublicRegistration({
                       if (!successData || utrInput.trim().length < 6 || payerName.trim().length < 2 || payerMobile.trim().length < 10) return;
                       setUtrSubmitting(true);
                       try {
-                        await dbService.submitPaymentVerification({
+                        await dbService.submitPaymentProof({
                           registrationId: successData.id,
+                          trackingCode: successData.trackingCode,
                           payerName: payerName.trim(),
                           payerMobile: payerMobile.trim(),
                           transactionId: utrInput.trim(),
                           amount: amount,
-                          status: 'pending'
                         });
-                        await dbService.submitPaymentUTR(successData.id, utrInput.trim());
                         setUtrSubmitted(true);
                       } catch (err) {
                         console.error(err);

@@ -7,7 +7,7 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { doc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import {
   Shield,
@@ -136,43 +136,17 @@ export default function AuthScreen({
           if (userCredential.user) {
             await updateProfile(userCredential.user, { displayName: displayName });
             if (db) {
-              // Check if pre-provisioned user document exists for this email
-              const usersColl = collection(db, "users");
-              const q = query(usersColl, where("email", "==", emailKey));
-              const querySnap = await getDocs(q);
-
-              if (!querySnap.empty) {
-                // User was pre-provisioned by SuperAdmin/Admin!
-                const preProvDoc = querySnap.docs[0];
-                const preProvData = preProvDoc.data();
-                const updatedUserDoc = {
-                  ...preProvData,
-                  uid: userCredential.user.uid,
-                  email: emailKey,
-                  displayName: displayName.trim() || preProvData.displayName || emailKey.split("@")[0].toUpperCase(),
-                  updatedAt: new Date().toISOString(),
-                };
-                // Delete tempPassword field upon self-registration activation
-                delete (updatedUserDoc as any).tempPassword;
-
-                await setDoc(doc(db, "users", userCredential.user.uid), updatedUserDoc);
-                if (preProvDoc.id !== userCredential.user.uid) {
-                  await deleteDoc(doc(db, "users", preProvDoc.id));
-                }
-                setSuccessMsg("Account successfully activated! Logging in...");
-              } else {
-                // Self-registration -> pending request
-                const newUserDoc = {
-                  uid: userCredential.user.uid,
-                  email: emailKey,
-                  displayName: displayName.trim() || emailKey.split("@")[0].toUpperCase(),
-                  role: "pending",
-                  assignedSports: [],
-                  createdAt: new Date().toISOString(),
-                };
-                await setDoc(doc(db, "users", userCredential.user.uid), newUserDoc);
-                setSuccessMsg("Account registered! Access request is pending approval from the Super Admin.");
-              }
+              // New accounts can only create a pending profile. Role assignment is server-side.
+              const newUserDoc = {
+                uid: userCredential.user.uid,
+                email: emailKey,
+                displayName: displayName.trim() || emailKey.split("@")[0].toUpperCase(),
+                role: "pending",
+                assignedSports: [],
+                createdAt: new Date().toISOString(),
+              };
+              await setDoc(doc(db, "users", userCredential.user.uid), newUserDoc);
+              setSuccessMsg("Account registered! Access request is pending approval from the Super Admin.");
             } else {
               setSuccessMsg("Account registered!");
             }
@@ -181,43 +155,11 @@ export default function AuthScreen({
             setDisplayName("");
           }
         } else {
-          const emailKey = email.trim().toLowerCase();
           try {
             await signInWithEmailAndPassword(auth, email, password);
             setSuccessMsg("Authenticating session credentials...");
-          } catch (signInErr: any) {
-            // Check if user is pre-provisioned in Firestore with a temp password matching the entered password
-            if (db && (signInErr.code === "auth/invalid-credential" || signInErr.code === "auth/user-not-found")) {
-              const usersColl = collection(db, "users");
-              const q = query(usersColl, where("email", "==", emailKey));
-              const querySnap = await getDocs(q);
-              if (!querySnap.empty) {
-                const preProvDoc = querySnap.docs[0];
-                const preProvData = preProvDoc.data();
-                if (preProvData.tempPassword && preProvData.tempPassword === password) {
-                  // User has a matching temp password! Complete registration in Auth.
-                  const userCredential = await createUserWithEmailAndPassword(auth, emailKey, password);
-                  if (userCredential.user) {
-                    await updateProfile(userCredential.user, { displayName: preProvData.displayName });
-                    const updatedUserDoc = {
-                      ...preProvData,
-                      uid: userCredential.user.uid,
-                      email: emailKey,
-                      updatedAt: new Date().toISOString()
-                    };
-                    delete (updatedUserDoc as any).tempPassword;
-
-                    await setDoc(doc(db, "users", userCredential.user.uid), updatedUserDoc);
-                    if (preProvDoc.id !== userCredential.user.uid) {
-                      await deleteDoc(doc(db, "users", preProvDoc.id));
-                    }
-                    setSuccessMsg("Account successfully activated! Logging in...");
-                    return;
-                  }
-                }
-              }
-            }
-            throw signInErr; // Rethrow to main catch block if not a matching temp password login
+          } catch (signInErr) {
+            throw signInErr;
           }
         }
       }

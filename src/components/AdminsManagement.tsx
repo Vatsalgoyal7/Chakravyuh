@@ -170,7 +170,6 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
       assignedSports: selectedCategory.toLowerCase() === "sports" ? selectedSports : [],
       createdAt: new Date().toISOString(),
       suspended: false,
-      ...(setTempPwd && tempPassword ? { tempPassword: tempPassword } : {}),
     };
 
     try {
@@ -557,12 +556,13 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
               <div className="space-y-3 border border-gray-800 rounded-xl p-4 bg-[#0d0f12]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Set Temporary Password <span className="text-gray-600">(Optional)</span></p>
-                    <p className="text-[9px] text-gray-600 mt-0.5 font-mono">If set, the user can sign in with this password without completing the signup flow.</p>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Secure account setup</p>
+                    <p className="text-[9px] text-gray-600 mt-0.5 font-mono">Passwords are never stored here. The staff member must use Request Access and be approved from the pending list.</p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setSetTempPwd(!setTempPwd); setTempPassword(""); }}
+                    onClick={() => {}}
+                    disabled
                     className={`relative w-10 h-5 rounded-full transition-all cursor-pointer border ${
                       setTempPwd ? "bg-orange-500 border-orange-400" : "bg-gray-700 border-gray-600"
                     }`}

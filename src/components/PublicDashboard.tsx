@@ -14,7 +14,8 @@ export default function PublicDashboard() {
 
   // Recovery and Local cache states
   const [recentRegistrations, setRecentRegistrations] = useState<any[]>([]);
-  const [recoverQuery, setRecoverQuery] = useState("");
+  const [recoverEmail, setRecoverEmail] = useState("");
+  const [recoverRollNo, setRecoverRollNo] = useState("");
   const [recoverResults, setRecoverResults] = useState<any[]>([]);
   const [isRecovering, setIsRecovering] = useState(false);
   const [hasRecovered, setHasRecovered] = useState(false);
@@ -69,12 +70,12 @@ export default function PublicDashboard() {
 
   const handleRecoverLookup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recoverQuery.trim()) return;
+    if (!recoverEmail.trim() || !recoverRollNo.trim()) return;
 
     setIsRecovering(true);
     setHasRecovered(true);
     try {
-      const results = await dbService.getRegistrationsByLookup(recoverQuery);
+      const results = await dbService.getRegistrationsByLookup(recoverEmail, recoverRollNo);
       setRecoverResults(results);
     } catch (err) {
       console.error("Recovery lookup failed:", err);
@@ -284,7 +285,8 @@ export default function PublicDashboard() {
                     setShowRecoverForm(!showRecoverForm);
                     setRecoverResults([]);
                     setHasRecovered(false);
-                    setRecoverQuery("");
+                    setRecoverEmail("");
+                    setRecoverRollNo("");
                   }}
                   className="text-[10px] font-mono text-gray-500 hover:text-orange-400 transition-all flex items-center gap-1 cursor-pointer bg-transparent border-none outline-none"
                 >
@@ -299,17 +301,26 @@ export default function PublicDashboard() {
                   >
                     <form onSubmit={handleRecoverLookup} className="space-y-2">
                       <label className="block text-[9px] font-mono uppercase tracking-wider text-gray-500 font-bold">
-                        Search by Roll Number or Email Address
+                        Confirm your registered email and roll number
                       </label>
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
                         <input
-                          type="text"
+                          type="email"
                           required
-                          value={recoverQuery}
-                          onChange={(e) => setRecoverQuery(e.target.value)}
-                          placeholder="Roll No or Email"
-                          className="flex-1 bg-[#0f1115] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/40 font-mono"
+                          value={recoverEmail}
+                          onChange={(e) => setRecoverEmail(e.target.value)}
+                          placeholder="Registered email address"
+                          className="w-full bg-[#0f1115] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/40 font-mono"
                         />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            required
+                            value={recoverRollNo}
+                            onChange={(e) => setRecoverRollNo(e.target.value)}
+                            placeholder="Registered roll number"
+                            className="flex-1 bg-[#0f1115] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/40 font-mono"
+                          />
                         <button
                           type="submit"
                           disabled={isRecovering}
@@ -317,6 +328,7 @@ export default function PublicDashboard() {
                         >
                           {isRecovering ? "..." : "Find"}
                         </button>
+                        </div>
                       </div>
                     </form>
 

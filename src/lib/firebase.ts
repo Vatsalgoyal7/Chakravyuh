@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getMessaging, getToken, isSupported } from "firebase/messaging";
+import { getFunctions } from "firebase/functions";
 
 // Safe loading of environment variables
 const firebaseConfig = {
@@ -24,6 +25,7 @@ let app: any;
 let auth: any;
 let db: any;
 let storage: any;
+let functions: any;
 let messaging: any = null;
 
 if (isFirebaseConfigured) {
@@ -32,6 +34,7 @@ if (isFirebaseConfigured) {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+    functions = getFunctions(app);
 
     // Initialize FCM if browser supports it
     isSupported().then((supported) => {
@@ -59,4 +62,4 @@ if (isFirebaseConfigured) {
   );
 }
 
-export { app, auth, db, storage, messaging, getToken, isSupported, firebaseConfig };
+export { app, auth, db, storage, functions, messaging, getToken, isSupported, firebaseConfig };

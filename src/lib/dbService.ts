@@ -25,8 +25,9 @@ import {
   orderBy,
   onSnapshot
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 
-import { db, isFirebaseConfigured } from "./firebase";
+import { db, functions, isFirebaseConfigured } from "./firebase";
 
 import { 
 
@@ -1529,12 +1530,21 @@ export const dbService = {
 
 
 
-    // Duplicate prevention validation
-
-    if (isFirebaseConfigured && db) {
-
+    // The production path is a callable function so capacity and duplicate checks
+    // are atomic and cannot be bypassed from a browser.
+    if (isFirebaseConfigured && functions) {
       try {
+        const submitRegistration = httpsCallable<typeof reg, Registration>(functions, "submitRegistration");
+        return (await submitRegistration(reg)).data;
+      } catch (err) {
+        console.error("Secure registration submission failed:", err);
+        throw new Error("Registration could not be saved. Please check the details and try again.");
+      }
+    }
 
+    // Offline/local-storage fallback
+    if (false && isFirebaseConfigured && db) {
+      try {
         const batch = writeBatch(db);
 
         batch.set(doc(db, "registrations", id), sanitizedReg);
@@ -1727,9 +1737,14 @@ export const dbService = {
 
 
 
-  async getRegistrationsByLookup(queryValue: string): Promise<Registration[]> {
+  async getRegistrationsByLookup(queryValue: string, rollNo?: string): Promise<Registration[]> {
 
     const searchVal = queryValue.trim().toLowerCase();
+
+    if (isFirebaseConfigured && functions) {
+      const recoverRegistrations = httpsCallable<{ email: string; rollNo: string }, Registration[]>(functions, "recoverRegistrations");
+      return (await recoverRegistrations({ email: searchVal, rollNo: (rollNo || "").trim() })).data;
+    }
 
     if (isFirebaseConfigured && db) {
 
@@ -3146,6 +3161,23 @@ export const dbService = {
 
     throw new Error("Registration not found");
 
+  },
+
+  async submitPaymentProof(input: { registrationId: string; trackingCode: string; payerName: string; payerMobile: string; transactionId: string; amount: number }): Promise<void> {
+    if (isFirebaseConfigured && functions) {
+      const submitPaymentProof = httpsCallable<typeof input, { id: string }>(functions, "submitPaymentProof");
+      await submitPaymentProof(input);
+      return;
+    }
+    await this.submitPaymentVerification({
+      registrationId: input.registrationId,
+      payerName: input.payerName,
+      payerMobile: input.payerMobile,
+      transactionId: input.transactionId,
+      amount: input.amount,
+      status: "pending",
+    });
+    await this.submitPaymentUTR(input.registrationId, input.transactionId);
   },
 
 
