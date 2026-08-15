@@ -27,6 +27,8 @@ export default function GalleryManagement() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  const [failedImageIds, setFailedImageIds] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     loadGallery();
   }, []);
@@ -462,23 +464,27 @@ export default function GalleryManagement() {
 
                 <div className="h-48 relative overflow-hidden bg-gray-900">
 
-                  {isVideo(item.imageUrl) ? (
-
+                  {failedImageIds[item.id] ? (
+                    <div className="w-full h-full bg-gradient-to-br from-gray-900 via-[#101217] to-gray-950 flex flex-col items-center justify-center text-gray-600 gap-2 p-4 text-center">
+                      <ImageIcon className="w-8 h-8 text-gray-700" />
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-gray-500">Media Asset Unavailable</span>
+                      <span className="text-[9px] text-gray-600 font-mono">Use Trash Icon below to remove test record</span>
+                    </div>
+                  ) : isVideo(item.imageUrl) ? (
                     <video
                       src={item.imageUrl}
                       controls
                       className="w-full h-full object-cover"
+                      onError={() => setFailedImageIds(prev => ({ ...prev, [item.id]: true }))}
                     />
-
                   ) : (
-
                     <img
                       src={item.imageUrl}
                       alt={item.caption}
                       className="w-full h-full object-cover transition-all group-hover:scale-105 duration-500"
                       referrerPolicy="no-referrer"
+                      onError={() => setFailedImageIds(prev => ({ ...prev, [item.id]: true }))}
                     />
-
                   )}
 
                   <span className="absolute top-3 left-3 text-[9px] uppercase font-bold font-mono tracking-wider bg-black/60 backdrop-blur-md text-orange-400 px-2.5 py-1 rounded-full border border-orange-500/10 flex items-center gap-1">

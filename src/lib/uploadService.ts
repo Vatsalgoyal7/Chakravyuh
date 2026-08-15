@@ -32,14 +32,14 @@ export async function uploadMedia(
     }
   }
 
-  // 2. Try Firebase Storage if configured (with a 4-second timeout to prevent hanging)
+  // 2. Try Firebase Storage if configured (with a 30-second timeout for mobile networks)
   if (isFirebaseConfigured && storage) {
     try {
-      const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
+      const storageRef = ref(storage, `uploads/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
       
       const uploadPromise = uploadBytes(storageRef, compressedFile);
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 4000)
+        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 30000)
       );
 
       const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
@@ -50,7 +50,7 @@ export async function uploadMedia(
     }
   }
 
-  // 3. Try Cloudinary when explicitly configured
+  // 3. Try Cloudinary when explicitly configured (with 20-second timeout)
   if (isCloudinaryConfigured) {
     try {
       const formData = new FormData();
@@ -60,7 +60,7 @@ export async function uploadMedia(
       const resourceType = file.type.startsWith("video") ? "video" : "image";
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
 
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
@@ -83,13 +83,13 @@ export async function uploadMedia(
     }
   }
 
-  // 4. Fallback: Base64 data URL
+  // 4. Fallback: Base64 data URL (Ensure file is ultra-compressed < 150KB so it never truncates in Firestore/LocalStorage)
   let finalFile = compressedFile;
-  if (file.type.startsWith("image/") && finalFile.size > 0.5 * 1024 * 1024) {
+  if (file.type.startsWith("image/")) {
     try {
       finalFile = await imageCompression(file, {
-        maxSizeMB: 0.3,
-        maxWidthOrHeight: 800,
+        maxSizeMB: 0.12,
+        maxWidthOrHeight: 600,
         useWebWorker: false,
       });
     } catch (e) {
