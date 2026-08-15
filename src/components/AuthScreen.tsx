@@ -161,7 +161,13 @@ export default function AuthScreen({
       console.error(err);
       let friendlyError = err.message || "Authentication failed. Please verify credentials.";
       if (err.code === "auth/email-already-in-use") {
-        friendlyError = "This email is already registered. Please sign in instead.";
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          setSuccessMsg("Authenticating session credentials...");
+          return;
+        } catch (signInErr) {
+          friendlyError = "This email is already registered. Please click 'Already have an account? Sign In' or sign in with Google.";
+        }
       } else if (err.code === "auth/weak-password") {
         friendlyError = "Password should be at least 6 characters long.";
       } else if (
