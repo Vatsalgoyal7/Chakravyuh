@@ -68,6 +68,10 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
   const [editSports, setEditSports] = useState<string[]>([]);
   const [editCategorySaving, setEditCategorySaving] = useState(false);
 
+  // Temp password toggle in create form
+  const [setTempPwd, setSetTempPwd] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+
   useEffect(() => {
     loadData();
     const unsubscribe = dbService.subscribeToUsers((allUsers) => {
@@ -99,14 +103,23 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
     }
   }
 
-  const handleApprovePending = async (user: AdminUser, role: 'super_admin' | 'admin' | 'coordinator') => {
+  const handleApprovePending = async (pendingUser: AdminUser, role: 'super_admin' | 'admin' | 'coordinator') => {
     const updatedUser: AdminUser = {
-      ...user,
+      ...pendingUser,
       role: role,
       assignedSports: []
     };
     try {
       await dbService.saveUser(updatedUser);
+      await dbService.logActivity({
+        actorUid: actor.uid,
+        actorName: actor.displayName,
+        actorRole: actor.role,
+        action: "access_approved",
+        targetType: role,
+        targetId: pendingUser.uid,
+        summary: `Approved ${pendingUser.displayName} (${pendingUser.email}) as ${role}`,
+      });
       loadData();
     } catch (err) {
       console.error(err);
@@ -114,10 +127,19 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
     }
   };
 
-  const handleRejectPending = async (uid: string) => {
+  const handleRejectPending = async (pendingUser: AdminUser) => {
     if (confirm("Reject and delete this access request?")) {
       try {
-        await dbService.deleteUser(uid);
+        await dbService.deleteUser(pendingUser.uid);
+        await dbService.logActivity({
+          actorUid: actor.uid,
+          actorName: actor.displayName,
+          actorRole: actor.role,
+          action: "access_rejected",
+          targetType: "pending",
+          targetId: pendingUser.uid,
+          summary: `Rejected access request from ${pendingUser.displayName} (${pendingUser.email})`,
+        });
         loadData();
       } catch (err) {
         console.error(err);
@@ -148,6 +170,7 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
       assignedSports: selectedCategory.toLowerCase() === "sports" ? selectedSports : [],
       createdAt: new Date().toISOString(),
       suspended: false,
+      ...(setTempPwd && tempPassword ? { tempPassword: tempPassword } : {}),
     };
 
     try {
@@ -165,6 +188,8 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
       setEmail("");
       setSelectedCategory("General");
       setSelectedSports([]);
+      setSetTempPwd(false);
+      setTempPassword("");
       setShowForm(false);
       loadData();
     } catch (err) {
@@ -415,7 +440,7 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
                         Approve as Super Admin
                       </button>
                       <button
-                        onClick={() => handleRejectPending(pUser.uid)}
+                        onClick={() => handleRejectPending(pUser)}
                         className="p-2 hover:bg-red-500/10 text-gray-500 hover:text-red-400 rounded-lg transition-all border border-transparent hover:border-red-500/20 cursor-pointer"
                         title="Reject Request"
                       >
@@ -527,6 +552,44 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
                   </div>
                 </div>
               )}
+
+              {/* Temp Password Toggle */}
+              <div className="space-y-3 border border-gray-800 rounded-xl p-4 bg-[#0d0f12]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Set Temporary Password <span className="text-gray-600">(Optional)</span></p>
+                    <p className="text-[9px] text-gray-600 mt-0.5 font-mono">If set, the user can sign in with this password without completing the signup flow.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSetTempPwd(!setTempPwd); setTempPassword(""); }}
+                    className={`relative w-10 h-5 rounded-full transition-all cursor-pointer border ${
+                      setTempPwd ? "bg-orange-500 border-orange-400" : "bg-gray-700 border-gray-600"
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      setTempPwd ? "left-5" : "left-0.5"
+                    }`} />
+                  </button>
+                </div>
+                {setTempPwd && (
+                  <div className="space-y-1">
+                    <label className="block text-[9px] uppercase tracking-wider text-gray-500 font-bold font-mono">Temporary Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+                      <input
+                        type="text"
+                        className="w-full pl-9 pr-3 py-2 bg-[#0a0b0e] border border-gray-700 focus:border-orange-500 rounded-lg text-xs text-white font-mono"
+                        placeholder="e.g. Admin@2026"
+                        value={tempPassword}
+                        onChange={(e) => setTempPassword(e.target.value)}
+                        minLength={6}
+                      />
+                    </div>
+                    <p className="text-[9px] text-amber-500/70 font-mono">⚠ Share this password securely with the user. It will be removed after first login.</p>
+                  </div>
+                )}
+              </div>
 
               <div className="flex gap-2 border-t border-gray-800/60 pt-4">
                 <button type="submit" className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white cursor-pointer transition-all">

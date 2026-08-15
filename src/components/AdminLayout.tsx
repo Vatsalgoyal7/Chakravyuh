@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getAuth, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import { 
   Trophy, 
   LayoutDashboard, 
@@ -31,7 +32,9 @@ import {
   Save,
   Edit3,
   Bell,
-  BellOff
+  BellOff,
+  KeyRound,
+  Lock
 } from "lucide-react";
 import { AdminUser } from "../types";
 import { isFirebaseConfigured } from "../lib/firebase";
@@ -64,6 +67,25 @@ export default function AdminLayout({
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
+
+  // ── Change Password State ─────────────────────────────────────────────────
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+
+  // ── Pending Users Badge ───────────────────────────────────────────────────
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    if (user.role === "super_admin" || user.role === "admin") {
+      const unsub = dbService.subscribeToUsers((allUsers) => {
+        setPendingCount(allUsers.filter(u => u.role === "pending").length);
+      });
+      return () => unsub();
+    }
+  }, [user.uid]);
 
   // Notification preference toggle in profile modal
   const notifKey = `chakravyuh_notif_${user.uid}`;
@@ -114,6 +136,42 @@ export default function AdminLayout({
       setProfileMsg("Failed to save. Please try again.");
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg("error:New passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordMsg("error:Password must be at least 6 characters.");
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordMsg(null);
+    try {
+      const auth = getAuth();
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser || !firebaseUser.email) throw new Error("Not authenticated.");
+      // Re-authenticate first
+      const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, newPassword);
+      setPasswordMsg("success:Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => { setShowChangePassword(false); setPasswordMsg(null); }, 2000);
+    } catch (err: any) {
+      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+        setPasswordMsg("error:Current password is incorrect.");
+      } else {
+        setPasswordMsg("error:" + (err.message || "Failed to update password."));
+      }
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -374,6 +432,53 @@ export default function AdminLayout({
                 >
                   <Edit3 className="w-3.5 h-3.5" /> Edit My Profile
                 </button>
+
+                {/* Change Password Button */}
+                <button
+                  onClick={() => { setShowChangePassword(true); setPasswordMsg(null); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }}
+                  className="w-full py-2.5 bg-[#0d0f12] hover:bg-gray-800 border border-gray-800 hover:border-orange-500/30 text-gray-400 hover:text-orange-400 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <KeyRound className="w-3.5 h-3.5" /> Change Password
+                </button>
+              </div>
+            )}
+
+            {/* Change Password Modal */}
+            {showChangePassword && (
+              <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60]" style={{ animation: "fadeUp 0.22s ease-out" }}>
+                <div className="w-full max-w-sm mx-4 bg-[#111317] border border-gray-800 rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
+                    <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                      <KeyRound className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white font-mono">Change Password</h3>
+                      <p className="text-[10px] text-gray-500 font-mono">Securely update your login password.</p>
+                    </div>
+                  </div>
+                  {passwordMsg && (
+                    <p className={`text-[11px] font-mono px-3 py-2 rounded-xl border ${
+                      passwordMsg.startsWith("error:") ? "bg-red-950/30 border-red-500/20 text-red-400" : "bg-emerald-950/30 border-emerald-500/20 text-emerald-400"
+                    }`}>{passwordMsg.replace(/^(error|success):/, "")}</p>
+                  )}
+                  <form onSubmit={handleChangePassword} className="space-y-3">
+                    {[{ label: "Current Password", val: currentPassword, set: setCurrentPassword }, { label: "New Password", val: newPassword, set: setNewPassword }, { label: "Confirm New Password", val: confirmPassword, set: setConfirmPassword }].map(({ label, val, set }) => (
+                      <div key={label} className="space-y-1">
+                        <label className="block text-[9px] uppercase tracking-wider text-gray-400 font-bold font-mono">{label}</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+                          <input type="password" required className="w-full pl-9 pr-3 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500/60 rounded-xl text-xs text-white outline-none font-mono transition-colors" placeholder="••••••••" value={val} onChange={e => set(e.target.value)} />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex gap-2 pt-1">
+                      <button type="submit" disabled={passwordSaving} className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-black font-extrabold rounded-xl text-xs cursor-pointer disabled:opacity-60 transition-all">
+                        {passwordSaving ? "Updating..." : "Update Password"}
+                      </button>
+                      <button type="button" onClick={() => setShowChangePassword(false)} className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs cursor-pointer font-bold transition-all">Cancel</button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
           </div>
@@ -413,7 +518,12 @@ export default function AdminLayout({
                     `}
                   >
                     <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-orange-500" : "text-gray-500"}`} />
-                    <span>{item.label}</span>
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {(item.id === "admins" || item.id === "coordinators") && pendingCount > 0 && (
+                      <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 text-white text-[9px] font-black rounded-full px-1">
+                        {pendingCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}

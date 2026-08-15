@@ -5,6 +5,7 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, setDoc, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
@@ -24,6 +25,7 @@ import {
   BookOpen,
   Zap,
   Star,
+  KeyRound
 } from "lucide-react";
 import { AdminUser } from "../types";
 
@@ -44,6 +46,7 @@ export default function AuthScreen({
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
 
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -90,6 +93,28 @@ export default function AuthScreen({
     if (field === "name") setDisplayName(value);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      setError("Please enter your email address first.");
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+    setSuccessMsg("");
+    try {
+      if (auth) {
+        await sendPasswordResetEmail(auth, email.trim());
+        setSuccessMsg("Password reset email sent! Please check your inbox.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to send password reset email.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -127,6 +152,9 @@ export default function AuthScreen({
                   displayName: displayName.trim() || preProvData.displayName || emailKey.split("@")[0].toUpperCase(),
                   updatedAt: new Date().toISOString(),
                 };
+                // Delete tempPassword field upon self-registration activation
+                delete (updatedUserDoc as any).tempPassword;
+
                 await setDoc(doc(db, "users", userCredential.user.uid), updatedUserDoc);
                 if (preProvDoc.id !== userCredential.user.uid) {
                   await deleteDoc(doc(db, "users", preProvDoc.id));
@@ -153,8 +181,44 @@ export default function AuthScreen({
             setDisplayName("");
           }
         } else {
-          await signInWithEmailAndPassword(auth, email, password);
-          setSuccessMsg("Authenticating session credentials...");
+          const emailKey = email.trim().toLowerCase();
+          try {
+            await signInWithEmailAndPassword(auth, email, password);
+            setSuccessMsg("Authenticating session credentials...");
+          } catch (signInErr: any) {
+            // Check if user is pre-provisioned in Firestore with a temp password matching the entered password
+            if (db && (signInErr.code === "auth/invalid-credential" || signInErr.code === "auth/user-not-found")) {
+              const usersColl = collection(db, "users");
+              const q = query(usersColl, where("email", "==", emailKey));
+              const querySnap = await getDocs(q);
+              if (!querySnap.empty) {
+                const preProvDoc = querySnap.docs[0];
+                const preProvData = preProvDoc.data();
+                if (preProvData.tempPassword && preProvData.tempPassword === password) {
+                  // User has a matching temp password! Complete registration in Auth.
+                  const userCredential = await createUserWithEmailAndPassword(auth, emailKey, password);
+                  if (userCredential.user) {
+                    await updateProfile(userCredential.user, { displayName: preProvData.displayName });
+                    const updatedUserDoc = {
+                      ...preProvData,
+                      uid: userCredential.user.uid,
+                      email: emailKey,
+                      updatedAt: new Date().toISOString()
+                    };
+                    delete (updatedUserDoc as any).tempPassword;
+
+                    await setDoc(doc(db, "users", userCredential.user.uid), updatedUserDoc);
+                    if (preProvDoc.id !== userCredential.user.uid) {
+                      await deleteDoc(doc(db, "users", preProvDoc.id));
+                    }
+                    setSuccessMsg("Account successfully activated! Logging in...");
+                    return;
+                  }
+                }
+              }
+            }
+            throw signInErr; // Rethrow to main catch block if not a matching temp password login
+          }
         }
       }
     } catch (err: any) {
@@ -566,9 +630,24 @@ export default function AuthScreen({
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label className="block text-xs uppercase tracking-[0.15em] text-gray-300 font-bold font-sans">
-                Password
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs uppercase tracking-[0.15em] text-gray-300 font-bold font-sans">
+                  Password
+                </label>
+                {!isSignUp && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setError("");
+                      setSuccessMsg("");
+                    }}
+                    className="text-[10px] text-orange-400 hover:text-orange-300 font-mono transition-colors cursor-pointer"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
               <div className="au-input-wrap relative">
                 <Lock className="au-ico absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
                 <input
@@ -620,6 +699,63 @@ export default function AuthScreen({
               </span>
             </button>
           </form>
+
+          {/* Forgot Password Modal Overlay */}
+          {isForgotPassword && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50" style={{ animation: "authFadeUp 0.25s ease-out" }}>
+              <div className="bg-[#0d0f12] border border-gray-800 rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4">
+                <div className="flex items-center gap-3 border-b border-gray-800 pb-3">
+                  <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                    <KeyRound className="w-4 h-4 text-orange-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white font-mono">Reset Password</h3>
+                    <p className="text-[10px] text-gray-500 font-mono">We'll send a reset link to your email.</p>
+                  </div>
+                </div>
+                {error && (
+                  <div className="p-3 bg-red-950/30 border border-red-500/25 rounded-xl">
+                    <p className="text-[11px] text-red-400">{error}</p>
+                  </div>
+                )}
+                {successMsg && (
+                  <div className="p-3 bg-emerald-950/30 border border-emerald-500/25 rounded-xl">
+                    <p className="text-[11px] text-emerald-400">{successMsg}</p>
+                  </div>
+                )}
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Email Address</label>
+                    <div className="au-input-wrap relative">
+                      <Mail className="au-ico absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
+                      <input
+                        type="email"
+                        required
+                        className="au-input w-full pl-10 pr-4 py-3 bg-[#0a0b0f] rounded-xl text-xs text-white placeholder-gray-700 outline-none font-mono"
+                        placeholder="your@email.com"
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); setError(""); setSuccessMsg(""); }}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="au-shimmer-btn w-full py-3 text-[#07080a] font-black uppercase tracking-wider rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                  >
+                    {isLoading ? <span className="w-4 h-4 border-2 border-[#07080a]/30 border-t-[#07080a] rounded-full animate-spin" /> : "Send Reset Email"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsForgotPassword(false); setError(""); setSuccessMsg(""); }}
+                    className="w-full py-2.5 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-gray-400 hover:text-white font-semibold text-xs transition-all cursor-pointer outline-none font-sans"
+                  >
+                    ← Back to Sign In
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
 
           {/* Google Sign In */}
           {isFirebaseConfigured && !isSignUp && (

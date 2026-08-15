@@ -15,7 +15,8 @@ import {
   Clock,
   CheckCircle,
   HelpCircle,
-  Key
+  Key,
+  Lock
 } from "lucide-react";
 
 interface CoordinatorsManagementProps {
@@ -35,6 +36,8 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
   const [inviteRole, setInviteRole] = useState<'super_admin' | 'admin' | 'coordinator'>("coordinator");
   const [inviteSports, setInviteSports] = useState<string[]>([]);
   const [inviteScope, setInviteScope] = useState<'all' | 'individual' | 'team'>("all");
+  const [inviteSetTempPwd, setInviteSetTempPwd] = useState(false);
+  const [inviteTempPassword, setInviteTempPassword] = useState("");
 
   // Edit Form state
   const [editName, setEditName] = useState("");
@@ -90,16 +93,28 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
       role: inviteRole,
       assignedSports: inviteRole === "coordinator" ? inviteSports : [],
       createdAt: new Date().toISOString(),
-      ...(inviteRole === "admin" ? { scope: inviteScope } : {})
+      ...(inviteRole === "admin" ? { scope: inviteScope } : {}),
+      ...(inviteSetTempPwd && inviteTempPassword ? { tempPassword: inviteTempPassword } : {}),
     };
 
     try {
       await dbService.saveUser(newUser);
+      await dbService.logActivity({
+        actorUid: currentUser.uid,
+        actorName: currentUser.displayName,
+        actorRole: currentUser.role,
+        action: "user_created",
+        targetType: inviteRole,
+        targetId: newUser.uid,
+        summary: `Pre-provisioned ${newUser.displayName} (${emailKey}) as ${inviteRole}`,
+      });
       setInviteName("");
       setInviteEmail("");
       setInviteRole("coordinator");
       setInviteSports([]);
       setInviteScope("all");
+      setInviteSetTempPwd(false);
+      setInviteTempPassword("");
       setShowInviteForm(false);
       loadData();
     } catch (err) {
@@ -154,19 +169,49 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
     }
   };
 
-  const handleApprovePending = async (user: AdminUser, role: 'super_admin' | 'admin' | 'coordinator') => {
+  const handleApprovePending = async (pendingUser: AdminUser, role: 'super_admin' | 'admin' | 'coordinator') => {
     const updatedUser: AdminUser = {
-      ...user,
+      ...pendingUser,
       role: role,
       assignedSports: [] // Empty by default, can edit to add sports later
     };
 
     try {
       await dbService.saveUser(updatedUser);
+      await dbService.logActivity({
+        actorUid: currentUser.uid,
+        actorName: currentUser.displayName,
+        actorRole: currentUser.role,
+        action: "access_approved",
+        targetType: role,
+        targetId: pendingUser.uid,
+        summary: `Approved ${pendingUser.displayName} (${pendingUser.email}) as ${role}`,
+      });
       loadData();
     } catch (err) {
       console.error(err);
       alert("Failed to approve access request.");
+    }
+  };
+
+  const handleRejectPending = async (pendingUser: AdminUser) => {
+    if (confirm(`Reject and delete access request from "${pendingUser.displayName}"?`)) {
+      try {
+        await dbService.deleteUser(pendingUser.uid);
+        await dbService.logActivity({
+          actorUid: currentUser.uid,
+          actorName: currentUser.displayName,
+          actorRole: currentUser.role,
+          action: "access_rejected",
+          targetType: "pending",
+          targetId: pendingUser.uid,
+          summary: `Rejected access request from ${pendingUser.displayName} (${pendingUser.email})`,
+        });
+        loadData();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to reject access request.");
+      }
     }
   };
 
@@ -343,6 +388,44 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
                 </div>
               </div>
             )}
+
+            {/* Temp Password Toggle */}
+            <div className="space-y-3 border border-gray-800 rounded-xl p-4 bg-[#0d0f12]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold font-mono">Set Temporary Password <span className="text-gray-600">(Optional)</span></p>
+                  <p className="text-[9px] text-gray-600 mt-0.5 font-mono">If set, the user can sign in directly without completing the signup flow.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setInviteSetTempPwd(!inviteSetTempPwd); setInviteTempPassword(""); }}
+                  className={`relative w-10 h-5 rounded-full transition-all cursor-pointer border ${
+                    inviteSetTempPwd ? "bg-orange-500 border-orange-400" : "bg-gray-700 border-gray-600"
+                  }`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                    inviteSetTempPwd ? "left-5" : "left-0.5"
+                  }`} />
+                </button>
+              </div>
+              {inviteSetTempPwd && (
+                <div className="space-y-1">
+                  <label className="block text-[9px] uppercase tracking-wider text-gray-500 font-bold font-mono">Temporary Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+                    <input
+                      type="text"
+                      className="w-full pl-9 pr-3 py-2 bg-[#0a0b0e] border border-gray-700 focus:border-orange-500 rounded-lg text-xs text-white font-mono"
+                      placeholder="e.g. Coord@2026"
+                      value={inviteTempPassword}
+                      onChange={(e) => setInviteTempPassword(e.target.value)}
+                      minLength={6}
+                    />
+                  </div>
+                  <p className="text-[9px] text-amber-500/70 font-mono">⚠ Share this password securely. It will be removed after first login.</p>
+                </div>
+              )}
+            </div>
 
             <div className="flex gap-2 pt-4 border-t border-gray-800">
               <button

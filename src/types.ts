@@ -132,9 +132,8 @@ export type ActivityAction =
 
 
   | 'user_deleted'
-
-
-
+  | 'access_approved'
+  | 'access_rejected'
   | 'backup_exported'
 
 

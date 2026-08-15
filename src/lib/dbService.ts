@@ -2924,7 +2924,7 @@ export const dbService = {
       }
     }
     // localStorage fallback
-    const all = getLocal<ChatMessage[]>("chat_messages") ?? [];
+    const all = getLocal<ChatMessage>("chat_messages", []);
     const keep = scope === "all" ? [] : all.filter(m => {
       const r = m.recipientId;
       if (scope === "dms") return r === "admins_group" || r === "coordinators_group";
