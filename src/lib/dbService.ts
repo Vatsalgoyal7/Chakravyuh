@@ -2690,25 +2690,32 @@ export const dbService = {
   // 9. USER/COORDINATOR MANAGEMENT
 
   async getUsers(): Promise<AdminUser[]> {
-
     if (isFirebaseConfigured && db) {
-
       try {
-
         const snapshot = await getDocs(collection(db, "users"));
-
         return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AdminUser));
-
       } catch (err) {
-
         console.error("Firestore getUsers failed, reading local storage:", err);
-
       }
-
     }
-
     return getLocal<AdminUser>("users", DEFAULT_USERS);
+  },
 
+  subscribeToUsers(callback: (users: AdminUser[]) => void): () => void {
+    if (isFirebaseConfigured && db) {
+      try {
+        const q = query(collection(db, "users"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as AdminUser));
+          callback(users);
+        });
+        return unsubscribe;
+      } catch (err) {
+        console.error("Firestore subscribeToUsers failed:", err);
+      }
+    }
+    this.getUsers().then(callback);
+    return () => {};
   },
 
 

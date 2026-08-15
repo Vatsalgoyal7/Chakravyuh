@@ -44,6 +44,10 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
 
   useEffect(() => {
     loadData();
+    const unsubscribe = dbService.subscribeToUsers((allUsers) => {
+      setUsers(allUsers);
+    });
+    return () => unsubscribe();
   }, []);
 
   async function loadData() {

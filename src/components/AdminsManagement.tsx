@@ -70,6 +70,11 @@ export default function AdminsManagement({ actor }: AdminsManagementProps) {
 
   useEffect(() => {
     loadData();
+    const unsubscribe = dbService.subscribeToUsers((allUsers) => {
+      setUsers(allUsers.filter((u) => u.role === "admin"));
+      setPendingUsers(allUsers.filter((u) => u.role === "pending"));
+    });
+    return () => unsubscribe();
   }, []);
 
   async function loadData() {
