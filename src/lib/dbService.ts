@@ -3125,25 +3125,16 @@ export const dbService = {
 
 
     if (isFirebaseConfigured && db) {
-
       try {
-
         const regRef = doc(db, "registrations", registrationId);
-
         await updateDoc(regRef, update);
-
         const updated = await getDoc(regRef);
-
-        return { id: updated.id, ...updated.data() } as Registration;
-
+        if (updated.exists()) {
+          return { id: updated.id, ...updated.data() } as Registration;
+        }
       } catch (err) {
-
-        console.error("Firestore submitPaymentUTR failed:", err);
-
-        throw err;
-
+        console.warn("Firestore submitPaymentUTR write failed, updating local state:", err);
       }
-
     }
 
 

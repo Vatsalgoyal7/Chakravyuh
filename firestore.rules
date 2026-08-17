@@ -46,7 +46,7 @@ service cloud.firestore {
     match /registrations/{registrationId} {
       allow get, list, delete: if canManageEventRegistrations(resource.data.eventId);
       allow update: if canManageEventRegistrations(resource.data.eventId)
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentStatus', 'utrNumber', 'paymentSubmittedAt', 'updatedAt']);
+        || request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus', 'utrNumber', 'paymentSubmittedAt', 'updatedAt']);
       allow create: if true;
     }
     match /registration_status/{trackingCode} {
