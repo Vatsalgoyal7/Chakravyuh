@@ -12,17 +12,17 @@ export async function uploadMedia(
 ): Promise<string> {
   let compressedFile = file;
 
-  // 1. Single compression pass for images
+  // 1. Single compression pass for images (ultra-fast 800px max, ~150KB)
   if (file.type.startsWith("image/")) {
     try {
       const compressionPromise = imageCompression(file, {
-        maxSizeMB: options?.maxImageSizeMB ?? 0.8,
-        maxWidthOrHeight: options?.maxImageWidthOrHeight ?? 1200,
-        useWebWorker: false, // Disabling WebWorker is much more stable in local networks / nested environments
+        maxSizeMB: options?.maxImageSizeMB ?? 0.15,
+        maxWidthOrHeight: options?.maxImageWidthOrHeight ?? 800,
+        useWebWorker: false,
       });
 
       const timeoutPromise = new Promise<File>((_, reject) =>
-        setTimeout(() => reject(new Error("Compression timeout")), 3000)
+        setTimeout(() => reject(new Error("Compression timeout")), 1500)
       );
 
       compressedFile = await Promise.race([compressionPromise, timeoutPromise]);
@@ -32,37 +32,27 @@ export async function uploadMedia(
     }
   }
 
-  // 2. Try Firebase Storage if configured (with a 30-second timeout for mobile networks)
+  // 2. Try Firebase Storage if configured (5-second fast timeout)
   if (isFirebaseConfigured && storage) {
     try {
       const storageRef = ref(storage, `uploads/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
       
       const uploadPromise = uploadBytes(storageRef, compressedFile);
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 30000)
+        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 5000)
       );
 
       const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
       const downloadURL = await getDownloadURL(snapshot.ref);
       return downloadURL;
     } catch (err) {
-      console.warn("Firebase Storage upload failed, falling back to local compressed Base64:", err);
+      console.warn("Firebase Storage upload failed or timed out, falling back to local compressed Base64:", err);
     }
   }
 
-  // 4. Fallback: Base64 data URL (Ensure file is ultra-compressed < 150KB so it never truncates in Firestore/LocalStorage)
-  let finalFile = compressedFile;
-  if (file.type.startsWith("image/")) {
-    try {
-      finalFile = await imageCompression(file, {
-        maxSizeMB: 0.12,
-        maxWidthOrHeight: 600,
-        useWebWorker: false,
-      });
-    } catch (e) {
-      console.warn("Failed to compress for Base64 fallback:", e);
-    }
-  } else if (file.type.startsWith("video/")) {
+  // 4. Fast Fallback: Base64 data URL
+  const finalFile = compressedFile;
+  if (file.type.startsWith("video/")) {
     if (file.size > 1.5 * 1024 * 1024) {
       throw new Error("Video file is too large for local database storage (max 1.5MB offline). Please configure Firebase Storage or use a smaller video.");
     }
