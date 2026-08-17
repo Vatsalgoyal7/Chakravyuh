@@ -370,6 +370,8 @@ export default function PublicRulesContact() {
 
                                   style={{ objectPosition: "center top" }}
 
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+
                                 />
 
                               ) : (
@@ -539,6 +541,8 @@ export default function PublicRulesContact() {
                                   className="w-full h-full object-cover"
 
                                   style={{ objectPosition: "center top" }}
+
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
 
                                 />
 

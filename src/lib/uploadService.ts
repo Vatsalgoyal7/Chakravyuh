@@ -46,40 +46,7 @@ export async function uploadMedia(
       const downloadURL = await getDownloadURL(snapshot.ref);
       return downloadURL;
     } catch (err) {
-      console.warn("Firebase Storage upload failed or timed out, trying Cloudinary:", err);
-    }
-  }
-
-  // 3. Try Cloudinary when explicitly configured (with 20-second timeout)
-  if (isCloudinaryConfigured) {
-    try {
-      const formData = new FormData();
-      formData.append("file", compressedFile);
-      formData.append("upload_preset", uploadPreset);
-
-      const resourceType = file.type.startsWith("video") ? "video" : "image";
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
-        {
-          method: "POST",
-          body: formData,
-          signal: controller.signal
-        }
-      );
-      clearTimeout(timeoutId);
-
-      const data = await response.json();
-      if (response.ok && data.secure_url) {
-        return data.secure_url;
-      } else {
-        console.warn("Cloudinary upload rejected:", data);
-      }
-    } catch (cloudinaryErr) {
-      console.warn("Cloudinary upload failed, falling back to Base64:", cloudinaryErr);
+      console.warn("Firebase Storage upload failed, falling back to local compressed Base64:", err);
     }
   }
 
