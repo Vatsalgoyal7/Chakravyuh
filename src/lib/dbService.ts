@@ -2272,21 +2272,27 @@ export const dbService = {
 
 
   async saveContact(item: Omit<Contact, "id"> & { id?: string }): Promise<Contact> {
-
     const id = item.id || `contact_${Date.now()}`;
+    const fullItem: Contact = { 
+      name: item.name || "",
+      designation: item.designation || "",
+      phone: item.phone || "",
+      email: item.email || "",
+      order: item.order ?? 1,
+      gender: item.gender || "male",
+      category: item.category || "General Coordinator",
+      isMainCoordinator: Boolean(item.isMainCoordinator),
+      enabled: item.enabled !== false,
+      imageUrl: item.imageUrl || "",
+      id 
+    };
 
-    const fullItem: Contact = { ...item, id };
-
-    console.log("saveContact - fullItem:", fullItem);
-
-
+    const cleanItem = JSON.parse(JSON.stringify(fullItem));
+    console.log("saveContact - cleanItem:", cleanItem);
 
     if (isFirebaseConfigured && db) {
-
       try {
-
-        await setDoc(doc(db, "contacts", id), fullItem);
-
+        await setDoc(doc(db, "contacts", id), cleanItem);
         console.log("saveContact - Successfully saved to Firestore");
 
         return fullItem;
