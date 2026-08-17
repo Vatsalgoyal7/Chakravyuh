@@ -32,21 +32,21 @@ export async function uploadMedia(
     }
   }
 
-  // 2. Try Firebase Storage if configured (5-second fast timeout)
-  if (isFirebaseConfigured && storage) {
+  // 2. Try Firebase Storage if configured (with fast 3-second CORS timeout)
+  if (isFirebaseConfigured && storage && !window.location.hostname.includes("workers.dev")) {
     try {
       const storageRef = ref(storage, `uploads/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
       
       const uploadPromise = uploadBytes(storageRef, compressedFile);
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 5000)
+        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 3000)
       );
 
       const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
       const downloadURL = await getDownloadURL(snapshot.ref);
       return downloadURL;
     } catch (err) {
-      console.warn("Firebase Storage upload failed or timed out, falling back to local compressed Base64:", err);
+      console.warn("Firebase Storage upload blocked or timed out, using instant compressed Data URL:", err);
     }
   }
 
