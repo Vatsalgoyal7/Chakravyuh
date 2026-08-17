@@ -393,7 +393,12 @@ export default function AboutManagement() {
                   <div className="flex gap-2 items-center">
                     <div className="w-10 h-10 rounded-lg bg-[#12141a] border border-gray-800 overflow-hidden flex items-center justify-center shrink-0">
                       {profile.photoUrl ? (
-                        <img src={profile.photoUrl} alt={profile.name || "Profile"} className="w-full h-full object-cover" />
+                        <img 
+                          src={profile.photoUrl} 
+                          alt={profile.name || "Profile"} 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        />
                       ) : (
                         <User className="w-4 h-4 text-gray-600" />
                       )}
