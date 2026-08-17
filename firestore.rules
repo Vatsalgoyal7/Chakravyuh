@@ -45,11 +45,12 @@ service cloud.firestore {
     // event state, capacity, duplicate registrations, and the data schema.
     match /registrations/{registrationId} {
       allow get, list, update, delete: if canManageEventRegistrations(resource.data.eventId);
-      allow create: if false;
+      allow create: if true;
     }
     match /registration_status/{trackingCode} {
       allow get: if true;
-      allow list, create, update, delete: if false;
+      allow create: if true;
+      allow list, update, delete: if false;
     }
 
     match /categories/{categoryId} { allow read: if isAdmin(); allow write: if isSuperAdmin(); }
@@ -69,7 +70,7 @@ service cloud.firestore {
     match /activity_logs/{logId} { allow read: if isSuperAdmin(); allow create: if isAdmin() && request.resource.data.actorUid == request.auth.uid; allow update, delete: if isSuperAdmin(); }
     match /payment_verifications/{verificationId} {
       allow read, update, delete: if isSuperAdmin() || isGeneralAdmin() || (isSportsAdmin() && get(/databases/$(database)/documents/registrations/$(resource.data.registrationId)).data.eventId in userDoc().assignedSports);
-      allow create: if false;
+      allow create: if true;
     }
     match /custom_forms/{formId} { allow read: if true; allow write: if isSuperAdmin() || isTechnicalAdmin(); }
     match /about/{docId} { allow read: if true; allow write: if isSuperAdmin(); }

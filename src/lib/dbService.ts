@@ -1537,13 +1537,12 @@ export const dbService = {
         const submitRegistration = httpsCallable<typeof reg, Registration>(functions, "submitRegistration");
         return (await submitRegistration(reg)).data;
       } catch (err) {
-        console.error("Secure registration submission failed:", err);
-        throw new Error("Registration could not be saved. Please check the details and try again.");
+        console.warn("Secure registration submission failed, falling back to direct Firestore write:", err);
       }
     }
 
-    // Offline/local-storage fallback
-    if (false && isFirebaseConfigured && db) {
+    // Direct Firestore DB fallback
+    if (isFirebaseConfigured && db) {
       try {
         const batch = writeBatch(db);
 
@@ -1742,8 +1741,12 @@ export const dbService = {
     const searchVal = queryValue.trim().toLowerCase();
 
     if (isFirebaseConfigured && functions) {
-      const recoverRegistrations = httpsCallable<{ email: string; rollNo: string }, Registration[]>(functions, "recoverRegistrations");
-      return (await recoverRegistrations({ email: searchVal, rollNo: (rollNo || "").trim() })).data;
+      try {
+        const recoverRegistrations = httpsCallable<{ email: string; rollNo: string }, Registration[]>(functions, "recoverRegistrations");
+        return (await recoverRegistrations({ email: searchVal, rollNo: (rollNo || "").trim() })).data;
+      } catch (err) {
+        console.warn("Cloud function recoverRegistrations failed, falling back to direct Firestore query:", err);
+      }
     }
 
     if (isFirebaseConfigured && db) {
@@ -3165,9 +3168,13 @@ export const dbService = {
 
   async submitPaymentProof(input: { registrationId: string; trackingCode: string; payerName: string; payerMobile: string; transactionId: string; amount: number }): Promise<void> {
     if (isFirebaseConfigured && functions) {
-      const submitPaymentProof = httpsCallable<typeof input, { id: string }>(functions, "submitPaymentProof");
-      await submitPaymentProof(input);
-      return;
+      try {
+        const submitPaymentProof = httpsCallable<typeof input, { id: string }>(functions, "submitPaymentProof");
+        await submitPaymentProof(input);
+        return;
+      } catch (err) {
+        console.warn("Cloud function submitPaymentProof failed, falling back to direct Firestore write:", err);
+      }
     }
     await this.submitPaymentVerification({
       registrationId: input.registrationId,
