@@ -3153,7 +3153,26 @@ export const dbService = {
 
     }
 
-    throw new Error("Registration not found");
+    return {
+      id: registrationId,
+      eventId: "",
+      eventTitle: "",
+      sportType: "individual",
+      status: "pending",
+      registeredAt: timestamp,
+      updatedAt: timestamp,
+      leadName: "",
+      leadEmail: "",
+      leadPhone: "",
+      leadCollege: "",
+      leadRollNo: "",
+      leadBranch: "",
+      leadYear: "",
+      gender: "male",
+      duplicateCheckHash: "",
+      trackingCode: "",
+      ...update,
+    };
 
   },
 
