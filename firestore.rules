@@ -54,7 +54,8 @@ service cloud.firestore {
       allow get: if true;
       allow create: if true;
       allow update: if isAdmin();
-      allow list, delete: if false;
+      allow list: if false;
+      allow delete: if isSuperAdmin();
     }
 
     match /categories/{categoryId} { allow read: if isAdmin(); allow write: if isSuperAdmin(); }
