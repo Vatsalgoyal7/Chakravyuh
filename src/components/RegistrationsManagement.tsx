@@ -327,9 +327,9 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     ];
 
     const getFeeString = (r: any) => {
-      if (r.paymentStatus === 'ims_student') return "₹0 (IMSEC Free)";
+      if (r.paymentStatus === 'ims_student') return "0 (IMSEC Free)";
       const ev = events.find(e => e.id === r.eventId);
-      return ev?.registrationFee !== undefined ? `₹${ev.registrationFee}` : "₹200 (Default)";
+      return ev?.registrationFee !== undefined ? `${ev.registrationFee}` : "200";
     };
 
     // Separate registrations by gender
@@ -401,7 +401,8 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
 
     // Function to download file
     const downloadFile = (content: string, filename: string) => {
-      const blob = new Blob([content], { type: format === "csv" ? "text/csv;charset=utf-8;" : "application/vnd.ms-excel" });
+      const finalContent = format === "csv" ? "\uFEFF" + content : content;
+      const blob = new Blob([finalContent], { type: format === "csv" ? "text/csv;charset=utf-8;" : "application/vnd.ms-excel" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
