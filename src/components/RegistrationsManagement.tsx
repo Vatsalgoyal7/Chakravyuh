@@ -1303,6 +1303,24 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                             console.log("Calling verifyPayment with:", verification.id, 'approved', user?.displayName || user?.email || "Admin", remarks);
                             try {
                               await dbService.verifyPayment(verification.id, 'approved', user?.displayName || user?.email || "Admin", remarks || undefined);
+                              
+                              const targetEmail = registration?.leadEmail || (verification.payerMobile && verification.payerMobile.includes('@') ? verification.payerMobile : undefined);
+                              if (targetEmail) {
+                                const evName = registration?.eventTitle || "Chakravyuh Event";
+                                const stName = registration?.leadName || verification.payerName || "Participant";
+                                await sendEmail({
+                                  to: targetEmail,
+                                  subject: `[CHAKRAVYUH 2K26] CONGRATULATIONS! Payment Verified - ${evName}`,
+                                  html: buildApprovalEmail(stName, evName, registration?.trackingCode)
+                                });
+                                setEmailLogs(prev => [{
+                                  id: `email_${Date.now()}`,
+                                  to: targetEmail,
+                                  subject: `[CHAKRAVYUH 2K26] CONGRATULATIONS! Payment Verified - ${evName}`,
+                                  sentAt: new Date().toLocaleTimeString()
+                                }, ...prev]);
+                              }
+
                               console.log("verifyPayment completed, calling loadData");
                               setTimeout(() => loadData(), 500);
                             } catch (error) {
@@ -1323,6 +1341,24 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                               console.log("Calling verifyPayment with:", verification.id, 'rejected', user?.displayName || user?.email || "Admin", remarks);
                               try {
                                 await dbService.verifyPayment(verification.id, 'rejected', user?.displayName || user?.email || "Admin", remarks);
+
+                                const targetEmail = registration?.leadEmail || (verification.payerMobile && verification.payerMobile.includes('@') ? verification.payerMobile : undefined);
+                                if (targetEmail) {
+                                  const evName = registration?.eventTitle || "Chakravyuh Event";
+                                  const stName = registration?.leadName || verification.payerName || "Participant";
+                                  await sendEmail({
+                                    to: targetEmail,
+                                    subject: `[CHAKRAVYUH 2K26] ACTION REQUIRED: Payment Verification Rejected - ${evName}`,
+                                    html: buildRejectionEmail(stName, evName, remarks)
+                                  });
+                                  setEmailLogs(prev => [{
+                                    id: `email_${Date.now()}`,
+                                    to: targetEmail,
+                                    subject: `[CHAKRAVYUH 2K26] ACTION REQUIRED: Payment Verification Rejected - ${evName}`,
+                                    sentAt: new Date().toLocaleTimeString()
+                                  }, ...prev]);
+                                }
+
                                 console.log("verifyPayment completed, calling loadData");
                                 setTimeout(() => loadData(), 500);
                               } catch (error) {
