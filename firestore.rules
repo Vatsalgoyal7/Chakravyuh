@@ -44,11 +44,11 @@ service cloud.firestore {
     // Public writes are performed only by the callable backend, which validates
     // event state, capacity, duplicate registrations, and the data schema.
     match /registrations/{registrationId} {
-      allow get, list: if true;
+      allow get: if true;
+      allow list: if isAdmin();
       allow delete: if canManageEventRegistrations(resource.data.eventId);
-      allow update: if canManageEventRegistrations(resource.data.eventId)
-        || request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus', 'utrNumber', 'paymentSubmittedAt', 'updatedAt']);
-      allow create: if true;
+      allow update: if canManageEventRegistrations(resource.data.eventId);
+      allow create: if false;
     }
     match /registration_status/{trackingCode} {
       allow get: if true;
@@ -77,6 +77,7 @@ service cloud.firestore {
       allow create: if true;
     }
     match /custom_forms/{formId} { allow read: if true; allow write: if isSuperAdmin() || isTechnicalAdmin(); }
+    match /season_archives/{archiveId} { allow read, write: if isSuperAdmin(); }
     match /about/{docId} { allow read: if true; allow write: if isSuperAdmin(); }
 
     // Internal callable-function support data is never client accessible.
