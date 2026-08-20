@@ -304,6 +304,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     ];
 
     const getFeeString = (r: any) => {
+      if (r.paymentStatus === 'ims_student') return "₹0 (IMSEC Free)";
       const ev = events.find(e => e.id === r.eventId);
       return ev?.registrationFee !== undefined ? `₹${ev.registrationFee}` : "₹200 (Default)";
     };
