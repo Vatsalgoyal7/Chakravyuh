@@ -1879,7 +1879,9 @@ export const dbService = {
 
         batch.update(regRef, updateData);
 
-        batch.update(doc(db, "registration_status", currentRegistration.trackingCode), { status });
+        if (currentRegistration.trackingCode) {
+          batch.update(doc(db, "registration_status", currentRegistration.trackingCode), { status });
+        }
 
         await batch.commit();
 
