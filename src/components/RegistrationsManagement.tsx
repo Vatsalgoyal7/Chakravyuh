@@ -409,7 +409,8 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
 
   // Payment Statement Export (Separate Excel for payment details)
   const handlePaymentExport = (format: "csv" | "excel") => {
-    const paymentRegistrations = filteredRegistrations.filter(r =>
+    const targetSource = filteredRegistrations.length > 0 ? filteredRegistrations : registrations;
+    const paymentRegistrations = targetSource.filter(r =>
       r.paymentStatus && r.paymentStatus !== 'pending_payment'
     );
 
@@ -748,7 +749,12 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     }
 
     const exportData = processedVerifications.map(v => {
-      const registration = registrations.find(r => r.id === v.registrationId);
+      const registration = registrations.find(r => 
+        r.id === v.registrationId || 
+        (r.utrNumber && v.transactionId && r.utrNumber.trim() === v.transactionId.trim()) ||
+        (r.leadPhone && v.payerMobile && r.leadPhone.trim() === v.payerMobile.trim()) ||
+        (r.leadName && v.payerName && r.leadName.trim().toLowerCase() === v.payerName.trim().toLowerCase())
+      );
       return {
         transactionId: v.transactionId,
         payerName: v.payerName,
@@ -759,7 +765,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
         verifiedAt: v.verifiedAt || "N/A",
         remarks: v.remarks || "N/A",
         eventTitle: registration?.eventTitle || "N/A",
-        studentName: registration?.leadName || "N/A",
+        studentName: registration?.leadName || v.payerName || "N/A",
         studentRollNo: registration?.leadRollNo || "N/A",
         studentCollege: registration?.leadCollege || "N/A"
       };
