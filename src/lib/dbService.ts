@@ -3468,23 +3468,49 @@ export const dbService = {
 
 
   async getRevenueAnalytics(): Promise<RevenueAnalytics> {
-
-    const [config, events, registrations] = await Promise.all([
-
+    const [config, events, registrations, verifications] = await Promise.all([
       this.getPaymentConfig(),
-
       this.getEvents(),
-
       this.getRegistrations(),
-
+      this.getPaymentVerifications(),
     ]);
 
-
-
     const globalFee = config.registrationFee || 0;
-    const verified = registrations.filter((r) => r.paymentStatus === "payment_verified");
-    const submitted = registrations.filter((r) => r.paymentStatus === "payment_submitted");
-    const rejected = registrations.filter((r) => r.paymentStatus === "payment_rejected");
+
+    // Helper to check if a registration is verified via registration field or verifications collection
+    const isRegVerified = (r: Registration) => {
+      if (r.paymentStatus === "payment_verified") return true;
+      return verifications.some(v => v.status === "approved" && (
+        v.registrationId === r.id ||
+        (v.transactionId && r.utrNumber && v.transactionId.trim() === r.utrNumber.trim()) ||
+        (v.payerMobile && r.leadPhone && v.payerMobile.trim() === r.leadPhone.trim())
+      ));
+    };
+
+    const isRegPending = (r: Registration) => {
+      if (r.paymentStatus === "payment_submitted") return true;
+      return verifications.some(v => v.status === "pending" && (
+        v.registrationId === r.id ||
+        (v.transactionId && r.utrNumber && v.transactionId.trim() === r.utrNumber.trim())
+      ));
+    };
+
+    const isRegRejected = (r: Registration) => {
+      if (r.paymentStatus === "payment_rejected") return true;
+      return verifications.some(v => v.status === "rejected" && (
+        v.registrationId === r.id ||
+        (v.transactionId && r.utrNumber && v.transactionId.trim() === r.utrNumber.trim())
+      ));
+    };
+
+    const verifiedRegs = registrations.filter(isRegVerified);
+    const pendingRegs = registrations.filter(isRegPending);
+    const rejectedRegs = registrations.filter(isRegRejected);
+
+    // Also include standalone verified verifications that might not be in registrations array
+    const standaloneApprovedVerifications = verifications.filter(v => 
+      v.status === "approved" && !registrations.some(isRegVerified)
+    );
 
     const eventsMap = new Map<string, SportEvent>(events.map(e => [e.id, e]));
 
@@ -3492,7 +3518,7 @@ export const dbService = {
     let individualRevenue = 0;
     let teamRevenue = 0;
 
-    verified.forEach((r) => {
+    verifiedRegs.forEach((r) => {
       const ev = eventsMap.get(r.eventId);
       const fee = ev?.registrationFee !== undefined ? ev.registrationFee : globalFee;
       totalCollectedEstimate += fee;
@@ -3503,8 +3529,19 @@ export const dbService = {
       }
     });
 
+    // Add standalone verified verifications
+    standaloneApprovedVerifications.forEach((v) => {
+      const amount = Number(v.amount) || globalFee;
+      totalCollectedEstimate += amount;
+      individualRevenue += amount;
+    });
+
+    const totalVerifiedCount = Math.max(verifiedRegs.length, verifications.filter(v => v.status === "approved").length);
+    const totalPendingCount = Math.max(pendingRegs.length, verifications.filter(v => v.status === "pending").length);
+    const totalRejectedCount = Math.max(rejectedRegs.length, verifications.filter(v => v.status === "rejected").length);
+
     const byEvent = events.map((ev) => {
-      const evVerified = verified.filter((r) => r.eventId === ev.id);
+      const evVerified = verifiedRegs.filter((r) => r.eventId === ev.id);
       const evFee = ev.registrationFee !== undefined ? ev.registrationFee : globalFee;
       return {
         eventId: ev.id,
@@ -3524,15 +3561,13 @@ export const dbService = {
       registrationFee: globalFee,
       paymentEnabled: config.enabled,
       totalCollectedEstimate,
-      verifiedPaymentsCount: verified.length,
-      submittedPendingCount: submitted.length,
-      rejectedPaymentsCount: rejected.length,
+      verifiedPaymentsCount: totalVerifiedCount,
+      submittedPendingCount: totalPendingCount,
+      rejectedPaymentsCount: totalRejectedCount,
       byEvent: byEvent.sort((a, b) => b.estimatedRevenue - a.estimatedRevenue),
       bySportType,
       updatedAt: new Date().toISOString(),
-
     };
-
   },
 
 
@@ -3806,97 +3841,68 @@ export const dbService = {
 
 
   async verifyPayment(verificationId: string, status: 'approved' | 'rejected', verifiedBy: string, remarks?: string): Promise<void> {
+    const timestamp = new Date().toISOString();
+    const newPaymentStatus = status === 'approved' ? 'payment_verified' : 'payment_rejected';
 
     if (isFirebaseConfigured && db) {
-
       try {
-
-        await updateDoc(doc(db, "payment_verifications", verificationId), {
-
+        const vRef = doc(db, "payment_verifications", verificationId);
+        const vSnap = await getDoc(vRef);
+        await updateDoc(vRef, {
           status,
-
-          verifiedAt: new Date().toISOString(),
-
+          verifiedAt: timestamp,
           verifiedBy,
-
           remarks
-
         });
 
-      } catch (err) {
-
-        console.error("Firestore verifyPayment failed, using local storage:", err);
-
-        const verifications = getLocal<PaymentVerification>("payment_verifications", []);
-
-        const index = verifications.findIndex(v => v.id === verificationId);
-
-        if (index !== -1) {
-
-          verifications[index] = {
-
-            ...verifications[index],
-
-            status,
-
-            verifiedAt: new Date().toISOString(),
-
-            verifiedBy,
-
-            remarks
-
-          };
-
-          setLocal("payment_verifications", verifications);
-
+        if (vSnap.exists()) {
+          const vData = vSnap.data() as PaymentVerification;
+          if (vData.registrationId) {
+            try {
+              const regRef = doc(db, "registrations", vData.registrationId);
+              const regSnap = await getDoc(regRef);
+              if (regSnap.exists()) {
+                await updateDoc(regRef, {
+                  paymentStatus: newPaymentStatus,
+                  status: status === 'approved' ? 'approved' : regSnap.data().status,
+                  updatedAt: timestamp
+                });
+              }
+            } catch (regErr) {
+              console.warn("Could not sync registration paymentStatus in Firestore:", regErr);
+            }
+          }
         }
-
+      } catch (err) {
+        console.error("Firestore verifyPayment failed, using local storage:", err);
       }
+    }
 
-    } else {
+    const verifications = getLocal<PaymentVerification>("payment_verifications", []);
+    const index = verifications.findIndex(v => v.id === verificationId);
+    if (index !== -1) {
+      verifications[index] = {
+        ...verifications[index],
+        status,
+        verifiedAt: timestamp,
+        verifiedBy,
+        remarks
+      };
+      setLocal("payment_verifications", verifications);
 
-      const verifications = getLocal<PaymentVerification>("payment_verifications", []);
-
-      const index = verifications.findIndex(v => v.id === verificationId);
-
-      if (index !== -1) {
-
-        verifications[index] = {
-
-          ...verifications[index],
-
-          status,
-
-          verifiedAt: new Date().toISOString(),
-
-          verifiedBy,
-
-          remarks
-
+      const localRegs = getLocal<Registration>("registrations", DEFAULT_REGISTRATIONS);
+      const regId = verifications[index].registrationId;
+      const regIdx = localRegs.findIndex(r => r.id === regId || (r.utrNumber && r.utrNumber === verifications[index].transactionId));
+      if (regIdx !== -1) {
+        localRegs[regIdx] = {
+          ...localRegs[regIdx],
+          paymentStatus: newPaymentStatus,
+          status: status === 'approved' ? 'approved' : localRegs[regIdx].status,
+          updatedAt: timestamp
         };
-
-        setLocal("payment_verifications", verifications);
-
+        setLocal("registrations", localRegs);
       }
-
     }
-
-
-
-    // Update registration payment status based on verification
-
-    const verification = (await this.getPaymentVerifications()).find(v => v.id === verificationId);
-
-    if (verification && status === 'approved') {
-
-      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_verified');
-
-    } else if (verification && status === 'rejected') {
-
-      await this.updateRegistrationPaymentStatus(verification.registrationId, 'payment_rejected');
-
-    }
-
   },
 
 

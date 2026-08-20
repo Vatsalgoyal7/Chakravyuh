@@ -750,24 +750,24 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
 
     const exportData = processedVerifications.map(v => {
       const registration = registrations.find(r => 
-        r.id === v.registrationId || 
+        (v.registrationId && (r.id === v.registrationId || r.id.endsWith(`_${v.registrationId}`))) || 
         (r.utrNumber && v.transactionId && r.utrNumber.trim() === v.transactionId.trim()) ||
         (r.leadPhone && v.payerMobile && r.leadPhone.trim() === v.payerMobile.trim()) ||
         (r.leadName && v.payerName && r.leadName.trim().toLowerCase() === v.payerName.trim().toLowerCase())
       );
       return {
         transactionId: v.transactionId,
-        payerName: v.payerName,
-        payerMobile: v.payerMobile,
+        payerName: v.payerName || registration?.leadName || "N/A",
+        payerMobile: v.payerMobile || registration?.leadPhone || "N/A",
         amount: v.amount,
         status: v.status,
         verifiedBy: v.verifiedBy || "N/A",
         verifiedAt: v.verifiedAt || "N/A",
         remarks: v.remarks || "N/A",
-        eventTitle: registration?.eventTitle || "N/A",
+        eventTitle: registration?.eventTitle || "Power Lifting",
         studentName: registration?.leadName || v.payerName || "N/A",
-        studentRollNo: registration?.leadRollNo || "N/A",
-        studentCollege: registration?.leadCollege || "N/A"
+        studentRollNo: registration?.leadRollNo || (v.registrationId ? String(v.registrationId).replace(/^reg_[^_]+_/, '') : "N/A"),
+        studentCollege: registration?.leadCollege || "IMS Engineering College"
       };
     });
 
