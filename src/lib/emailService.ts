@@ -1,9 +1,16 @@
 // Real email sender using Vercel /api/send-email serverless function (Resend)
 
+export interface EmailAttachment {
+  filename: string;
+  content: string; // base64
+  encoding?: string;
+}
+
 export interface EmailPayload {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {

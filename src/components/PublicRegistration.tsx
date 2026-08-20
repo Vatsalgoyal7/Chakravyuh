@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { downloadEventPassPDF } from "../lib/pdfGenerator";
 import { 
   Trophy, 
   User, 
@@ -20,7 +21,9 @@ import {
   ShieldAlert,
   MapPin,
   ArrowRight,
-  QrCode
+  QrCode,
+  FileText,
+  Share2
 } from "lucide-react";
 import { dbService } from "../lib/dbService";
 import { SportEvent, Registration, TeamMember, PaymentConfig } from "../types";
@@ -317,7 +320,25 @@ export default function PublicRegistration({
   };
 
   const handlePrint = () => {
-    window.print();
+    if (successData) {
+      downloadEventPassPDF(successData, selectedEvent);
+    } else {
+      window.print();
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!successData) return;
+    const text = encodeURIComponent(
+      `🏆 *CHAKRAVYUH 2K26 OFFICIAL ENTRY PASS*\n\n` +
+      `👤 *Athlete:* ${successData.leadName}\n` +
+      `⚽ *Event:* ${selectedEvent?.title || successData.eventTitle}\n` +
+      `🔖 *Tracking Code:* ${successData.trackingCode}\n` +
+      `🏫 *College:* ${successData.leadCollege}\n` +
+      `📅 *Status:* ${(successData.status || 'Pending').toUpperCase()}\n\n` +
+      `Track your entry pass live at: https://chakravyuh2k26.vercel.app/`
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
   const handleCopySlipId = () => {
@@ -689,17 +710,24 @@ export default function PublicRegistration({
             <div className="flex flex-col sm:flex-row gap-3 font-mono text-xs">
               <button
                 onClick={handlePrint}
-                className={`flex-1 py-3.5 rounded-2xl border transition-all flex items-center justify-center gap-2 cursor-pointer outline-none font-bold ${isWhiteBg ? 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-300' : 'bg-[#12151a] hover:bg-gray-800 text-gray-300 border-white/[0.06]'}`}
+                className={`flex-1 py-3.5 rounded-2xl border transition-all flex items-center justify-center gap-2 cursor-pointer outline-none font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30`}
               >
-                <Printer className="w-4 h-4" />
-                <span>Print Entry Slip</span>
+                <FileText className="w-4 h-4" />
+                <span>Download Pass (PDF)</span>
+              </button>
+              <button
+                onClick={handleWhatsAppShare}
+                className={`py-3.5 px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 cursor-pointer outline-none font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30`}
+              >
+                <Share2 className="w-4 h-4" />
+                <span>WhatsApp Pass</span>
               </button>
               <button
                 onClick={startNewReg}
                 className={`flex-1 py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer outline-none font-bold bg-orange-500 hover:bg-orange-600 text-white`}
               >
                 <Plus className="w-4 h-4" />
-                <span>Register Another Team</span>
+                <span>Register Another</span>
               </button>
             </div>
           </div>

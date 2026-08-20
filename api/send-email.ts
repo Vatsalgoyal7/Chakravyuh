@@ -5,7 +5,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { to, subject, html } = req.body;
+  const { to, subject, html, attachments } = req.body;
 
   if (!to || !subject || !html) {
     return res.status(400).json({ error: "Missing required fields: to, subject, html" });
@@ -27,12 +27,19 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    const mailOptions = {
+    const mailOptions: any = {
       from: `"Chakravyuh 2K26 Sports" <${gmailUser}>`,
       to: Array.isArray(to) ? to.join(",") : to,
       subject,
       html,
     };
+
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      mailOptions.attachments = attachments.map((att: any) => ({
+        filename: att.filename || "Chakravyuh_Pass.pdf",
+        content: Buffer.from(att.content, att.encoding || "base64"),
+      }));
+    }
 
     const info = await transporter.sendMail(mailOptions);
 

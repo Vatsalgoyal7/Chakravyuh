@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
 import { sendEmail, buildApprovalEmail, buildRejectionEmail, buildRegistrationConfirmEmail } from "../lib/emailService";
+import { downloadEventPassPDF, getEventPassPDFBase64 } from "../lib/pdfGenerator";
 import { Registration, SportEvent, TeamMember, PaymentVerification } from "../types";
 import {
   filterEventsByUserScope,
@@ -234,7 +235,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
         user.displayName
       );
 
-      // Send real email via Resend
+      // Send real email via Resend / Gmail
       const templateSubject = targetStatus === "approved"
         ? `[CHAKRAVYUH 2K26] CONGRATULATIONS! Registration Approved - ${selectedReg.eventTitle}`
         : `[CHAKRAVYUH 2K26] ACTION REQUIRED: Registration Rejected - ${selectedReg.eventTitle}`;
@@ -243,7 +244,21 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
         ? buildApprovalEmail(selectedReg.leadName, selectedReg.eventTitle, selectedReg.trackingCode)
         : buildRejectionEmail(selectedReg.leadName, selectedReg.eventTitle, remarks);
 
-      await sendEmail({ to: selectedReg.leadEmail, subject: templateSubject, html: emailHtml });
+      let attachments;
+      if (targetStatus === "approved") {
+        try {
+          const pdfBase64 = getEventPassPDFBase64(updated, events.find(e => e.id === updated.eventId));
+          attachments = [{
+            filename: `Chakravyuh_Pass_${updated.trackingCode || updated.id}.pdf`,
+            content: pdfBase64,
+            encoding: "base64"
+          }];
+        } catch (pdfErr) {
+          console.warn("Could not generate PDF attachment:", pdfErr);
+        }
+      }
+
+      await sendEmail({ to: selectedReg.leadEmail, subject: templateSubject, html: emailHtml, attachments });
 
       const newLog = {
         id: `email_${Date.now()}`,
@@ -1594,6 +1609,17 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                           title="View entire roster details"
                         >
                           View Roster
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const ev = events.find(e => e.id === reg.eventId);
+                            downloadEventPassPDF(reg, ev);
+                          }}
+                          className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-[10px] font-semibold transition-all"
+                          title="Download Official 1-Page PDF Sports Ticket Pass"
+                        >
+                          📄 Pass
                         </button>
                         
                         {reg.status === "pending" ? (
