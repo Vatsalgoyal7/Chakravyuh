@@ -195,7 +195,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       };
       setEmailLogs(prev => [newLog, ...prev]);
 
-      alert(emailSent ? "Registration saved and confirmation email sent!" : "Registration saved! (Email delivery failed - check Resend dashboard)");
+      alert(emailSent.success ? "Registration saved and confirmation email sent!" : `Registration saved! Email status: ${emailSent.error}`);
       setShowAddForm(false);
       
       // Reset form

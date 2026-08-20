@@ -6,7 +6,7 @@ export interface EmailPayload {
   html: string;
 }
 
-export async function sendEmail(payload: EmailPayload): Promise<boolean> {
+export async function sendEmail(payload: EmailPayload): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch("/api/send-email", {
       method: "POST",
@@ -14,16 +14,16 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
       body: JSON.stringify(payload),
     });
 
+    const data = await res.json();
     if (!res.ok) {
-      const err = await res.json();
-      console.error("Email send failed:", err);
-      return false;
+      console.error("Email send failed:", data);
+      return { success: false, error: data.error || data.message || `HTTP ${res.status}` };
     }
 
-    return true;
-  } catch (err) {
+    return { success: true };
+  } catch (err: any) {
     console.error("Email service error:", err);
-    return false;
+    return { success: false, error: err.message || "Network error" };
   }
 }
 
