@@ -193,7 +193,7 @@ export function generateEventPassPDF(registration: Registration, event?: SportEv
       { content: "UTR / Transaction ID", styles: { fontStyle: "bold", fillColor: [241, 245, 249] } },
       registration.utrNumber || "N/A (Internal / Offline)",
       { content: "Fee Amount", styles: { fontStyle: "bold", fillColor: [241, 245, 249] } },
-      registration.paymentStatus === "ims_student" ? "₹0 (IMSEC Free Exemption)" : (event?.registrationFee !== undefined ? `₹${event.registrationFee}` : "₹200 (Verified)")
+      registration.paymentStatus === "ims_student" ? "INR 0 (IMSEC Free Exemption)" : (event?.registrationFee !== undefined ? `INR ${event.registrationFee}` : "INR 200 (Verified)")
     ]
   ];
 
@@ -221,7 +221,7 @@ export function generateEventPassPDF(registration: Registration, event?: SportEv
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(180, 83, 9); // #b45309
-  doc.text("📌 MANDATORY GROUND REPORTING & CONDUCT RULES:", margin + 5, y + 6);
+  doc.text("IMPORTANT GROUND REPORTING & CONDUCT RULES:", margin + 5, y + 6);
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
