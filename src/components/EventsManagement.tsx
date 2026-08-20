@@ -38,6 +38,7 @@ export default function EventsManagement() {
   const [registrationDeadline, setRegistrationDeadline] = useState("");
   const [maxRegistrations, setMaxRegistrations] = useState(32);
   const [isActive, setIsActive] = useState(true);
+  const [registrationFee, setRegistrationFee] = useState<number | string>("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,6 +103,7 @@ export default function EventsManagement() {
     setRegistrationDeadline("");
     setMaxRegistrations(32);
     setIsActive(true);
+    setRegistrationFee("");
     setCoordinators([{ name: "", phone: "", email: "" }]);
     setIsEditing(false);
     setEditId(null);
@@ -118,6 +120,7 @@ export default function EventsManagement() {
     setRules(event.rules);
     setVenue(event.venue);
     setImage(event.image);
+    setRegistrationFee(event.registrationFee !== undefined ? event.registrationFee : "");
     // Format date string to fit datetime-local input "yyyy-MM-ddThh:mm"
     if (event.registrationDeadline) {
       try {
@@ -158,6 +161,7 @@ export default function EventsManagement() {
       image: image || "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800", // placeholder
       registrationDeadline: new Date(registrationDeadline).toISOString(),
       maxRegistrations: Number(maxRegistrations),
+      registrationFee: registrationFee !== "" ? Number(registrationFee) : undefined,
       isActive,
       coordinators: filteredCoordinators,
     };
@@ -315,7 +319,7 @@ export default function EventsManagement() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               
               {/* Venue */}
               <div className="space-y-2">
@@ -330,9 +334,22 @@ export default function EventsManagement() {
                 />
               </div>
 
+              {/* Custom Registration Fee */}
+              <div className="space-y-2">
+                <label className="block text-[11px] uppercase tracking-wider text-orange-400 font-bold font-mono">Registration Fee (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Default (e.g. 2500)"
+                  className="w-full px-4 py-2.5 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white placeholder-gray-600 outline-none transition-all font-mono"
+                  value={registrationFee}
+                  onChange={(e) => setRegistrationFee(e.target.value === "" ? "" : Number(e.target.value))}
+                />
+              </div>
+
               {/* Max Registrations Limit */}
               <div className="space-y-2">
-                <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Max Registrations Allowed</label>
+                <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Max Registrations</label>
                 <input
                   type="number"
                   min="1"
@@ -345,7 +362,7 @@ export default function EventsManagement() {
 
               {/* Deadline */}
               <div className="space-y-2">
-                <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Registration Deadline *</label>
+                <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Deadline *</label>
                 <input
                   type="datetime-local"
                   required
@@ -543,14 +560,18 @@ export default function EventsManagement() {
                   <p className="text-[11px] text-gray-500 mt-0.5 font-mono">Style: <span className="text-gray-300 capitalize">{event.type}</span></p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 bg-[#0d0f12] p-3 rounded-xl border border-gray-800/40 text-[11px] font-mono text-gray-400">
+                <div className="grid grid-cols-3 gap-2 bg-[#0d0f12] p-3 rounded-xl border border-gray-800/40 text-[11px] font-mono text-gray-400">
                   <div>
-                    <span className="block text-[9px] text-gray-600 font-bold uppercase">TEAM CONSTRAINTS</span>
+                    <span className="block text-[9px] text-gray-600 font-bold uppercase">CONSTRAINTS</span>
                     <span className="text-gray-300">{event.minTeamSize}-{event.maxTeamSize} athletes</span>
                   </div>
                   <div>
                     <span className="block text-[9px] text-gray-600 font-bold uppercase">FILLED SPOTS</span>
                     <span className="text-gray-300 font-bold text-orange-400">{event.registrationCount || 0} / {event.maxRegistrations}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[9px] text-gray-600 font-bold uppercase">ENTRY FEE</span>
+                    <span className="text-emerald-400 font-bold">{event.registrationFee !== undefined ? `₹${event.registrationFee}` : "Default ₹200"}</span>
                   </div>
                 </div>
 

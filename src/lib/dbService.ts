@@ -3481,66 +3481,54 @@ export const dbService = {
 
 
 
-    const fee = config.registrationFee || 0;
-
+    const globalFee = config.registrationFee || 0;
     const verified = registrations.filter((r) => r.paymentStatus === "payment_verified");
-
     const submitted = registrations.filter((r) => r.paymentStatus === "payment_submitted");
-
     const rejected = registrations.filter((r) => r.paymentStatus === "payment_rejected");
 
+    const eventsMap = new Map<string, SportEvent>(events.map(e => [e.id, e]));
 
+    let totalCollectedEstimate = 0;
+    let individualRevenue = 0;
+    let teamRevenue = 0;
 
-    const byEvent = events.map((ev) => {
-
-      const evVerified = verified.filter((r) => r.eventId === ev.id);
-
-      return {
-
-        eventId: ev.id,
-
-        eventTitle: ev.title,
-
-        sportType: ev.type,
-
-        verifiedCount: evVerified.length,
-
-        estimatedRevenue: evVerified.length * fee,
-
-      };
-
+    verified.forEach((r) => {
+      const ev = eventsMap.get(r.eventId);
+      const fee = ev?.registrationFee !== undefined ? ev.registrationFee : globalFee;
+      totalCollectedEstimate += fee;
+      if (r.sportType === "individual") {
+        individualRevenue += fee;
+      } else {
+        teamRevenue += fee;
+      }
     });
 
-
+    const byEvent = events.map((ev) => {
+      const evVerified = verified.filter((r) => r.eventId === ev.id);
+      const evFee = ev.registrationFee !== undefined ? ev.registrationFee : globalFee;
+      return {
+        eventId: ev.id,
+        eventTitle: ev.title,
+        sportType: ev.type,
+        verifiedCount: evVerified.length,
+        estimatedRevenue: evVerified.length * evFee,
+      };
+    });
 
     const bySportType = {
-
-      individual: verified.filter((r) => r.sportType === "individual").length * fee,
-
-      team: verified.filter((r) => r.sportType === "team").length * fee,
-
+      individual: individualRevenue,
+      team: teamRevenue,
     };
 
-
-
     return {
-
-      registrationFee: fee,
-
+      registrationFee: globalFee,
       paymentEnabled: config.enabled,
-
-      totalCollectedEstimate: verified.length * fee,
-
+      totalCollectedEstimate,
       verifiedPaymentsCount: verified.length,
-
       submittedPendingCount: submitted.length,
-
       rejectedPaymentsCount: rejected.length,
-
       byEvent: byEvent.sort((a, b) => b.estimatedRevenue - a.estimatedRevenue),
-
       bySportType,
-
       updatedAt: new Date().toISOString(),
 
     };

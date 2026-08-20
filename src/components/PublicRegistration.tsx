@@ -522,8 +522,12 @@ export default function PublicRegistration({
               
               const qrImage = currentQR?.imageUrl || paymentConfig.qrImageUrl;
               const upiIdVal = currentQR?.upiId || paymentConfig.upiId;
-              const baseFee = currentQR?.amountOverride !== undefined ? currentQR.amountOverride : paymentConfig.registrationFee;
-              const amount = selectedEvent?.type === 'team' ? (baseFee * (members.length + 1)) : baseFee;
+              const baseFee = selectedEvent?.registrationFee !== undefined
+                ? selectedEvent.registrationFee
+                : (currentQR?.amountOverride !== undefined ? currentQR.amountOverride : paymentConfig.registrationFee);
+              const amount = selectedEvent?.registrationFee !== undefined
+                ? selectedEvent.registrationFee
+                : (selectedEvent?.type === 'team' ? (baseFee * (members.length + 1)) : baseFee);
               const noteText = currentQR?.note || null;
 
               return (

@@ -300,8 +300,13 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       "ID", "Sport Title", "Sport Type", "Status", "Registered At",
       "Team Name", "Captain Name", "Captain Email", "Captain Phone",
       "Captain RollNo", "Captain College", "Captain Branch", "Captain Year", "Gender", "Total Team Members",
-      "UTR Number", "Payment Status"
+      "UTR Number", "Payment Status", "Fee Amount (INR)"
     ];
+
+    const getFeeString = (r: any) => {
+      const ev = events.find(e => e.id === r.eventId);
+      return ev?.registrationFee !== undefined ? `₹${ev.registrationFee}` : "₹200 (Default)";
+    };
 
     // Separate registrations by gender
     const maleRegistrations = filteredRegistrations.filter(r => r.gender === 'male');
@@ -331,7 +336,8 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
             r.gender || "unknown",
             r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1),
             r.utrNumber ? `"${r.utrNumber.replace(/"/g, '""')}"` : "",
-            r.paymentStatus || "unpaid"
+            r.paymentStatus || "unpaid",
+            `"${getFeeString(r)}"`
           ];
           fileContent += row.join(",") + "\n";
         });
@@ -360,6 +366,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
           fileContent += `<td>${r.sportType === "individual" ? 1 : ((r.members ? r.members.length : 0) + 1)}</td>`;
           fileContent += `<td>${r.utrNumber || ""}</td>`;
           fileContent += `<td>${r.paymentStatus || "unpaid"}</td>`;
+          fileContent += `<td>${getFeeString(r)}</td>`;
           fileContent += "</tr>";
         });
         fileContent += "</tbody></table></body></html>";

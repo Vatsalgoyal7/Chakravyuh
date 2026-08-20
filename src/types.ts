@@ -335,9 +335,7 @@ export interface SportEvent {
 
 
   updatedAt: string;
-
-
-
+  registrationFee?: number;
 }
 
 
