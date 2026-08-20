@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
+import { sendEmail, buildApprovalEmail, buildRejectionEmail, buildRegistrationConfirmEmail } from "../lib/emailService";
 import { Registration, SportEvent, TeamMember, PaymentVerification } from "../types";
 import {
   filterEventsByUserScope,
@@ -179,8 +180,13 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
 
     try {
       await dbService.saveRegistration(registrationPayload);
-      
-      // Simulate Email Send Dispatch
+
+      // Send real confirmation email via Resend
+      const emailSent = await sendEmail({
+        to: leadEmail,
+        subject: `[CHAKRAVYUH 2K26] Registration Received - ${event.title}`,
+        html: buildRegistrationConfirmEmail(leadName, event.title, (registrationPayload as any).trackingCode || "N/A")
+      });
       const newLog = {
         id: `email_${Date.now()}`,
         to: leadEmail,
@@ -189,7 +195,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       };
       setEmailLogs(prev => [newLog, ...prev]);
 
-      alert("Registration saved and simulated verification email dispatched successfully!");
+      alert(emailSent ? "Registration saved and confirmation email sent!" : "Registration saved! (Email delivery failed - check Resend dashboard)");
       setShowAddForm(false);
       
       // Reset form
@@ -228,14 +234,16 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
         user.displayName
       );
 
-      // Trigger Simulated confirmation email dispatch
-      const templateSubject = targetStatus === "approved" 
+      // Send real email via Resend
+      const templateSubject = targetStatus === "approved"
         ? `[CHAKRAVYUH 2K26] CONGRATULATIONS! Registration Approved - ${selectedReg.eventTitle}`
         : `[CHAKRAVYUH 2K26] ACTION REQUIRED: Registration Rejected - ${selectedReg.eventTitle}`;
 
-      const templateBody = targetStatus === "approved"
-        ? `Dear ${selectedReg.leadName}, Your entry has been APPROVED. Your fixtures details will be shared soon.`
-        : `Dear ${selectedReg.leadName}, Your entry has been REJECTED. Reason: ${remarks}.`;
+      const emailHtml = targetStatus === "approved"
+        ? buildApprovalEmail(selectedReg.leadName, selectedReg.eventTitle, selectedReg.trackingCode)
+        : buildRejectionEmail(selectedReg.leadName, selectedReg.eventTitle, remarks);
+
+      await sendEmail({ to: selectedReg.leadEmail, subject: templateSubject, html: emailHtml });
 
       const newLog = {
         id: `email_${Date.now()}`,
