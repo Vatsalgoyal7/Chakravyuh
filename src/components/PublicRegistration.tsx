@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import { downloadEventPassPDF } from "../lib/pdfGenerator";
 import { sendTelegramPaymentProof } from "../lib/telegramService";
 import { 
