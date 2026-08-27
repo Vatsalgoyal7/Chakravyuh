@@ -3184,22 +3184,14 @@ export const dbService = {
 
   },
 
-  async submitPaymentProof(input: { registrationId: string; trackingCode: string; payerName: string; payerMobile: string; transactionId: string; amount: number }): Promise<void> {
-    if (isFirebaseConfigured && functions) {
-      try {
-        const submitPaymentProof = httpsCallable<typeof input, { id: string }>(functions, "submitPaymentProof");
-        await submitPaymentProof(input);
-        return;
-      } catch (err) {
-        console.warn("Cloud function submitPaymentProof failed, falling back to direct Firestore write:", err);
-      }
-    }
+  async submitPaymentProof(input: { registrationId: string; trackingCode: string; payerName: string; payerMobile: string; transactionId: string; amount: number; paymentProofUrl?: string }): Promise<void> {
     await this.submitPaymentVerification({
       registrationId: input.registrationId,
       payerName: input.payerName,
       payerMobile: input.payerMobile,
       transactionId: input.transactionId,
       amount: input.amount,
+      paymentProofUrl: input.paymentProofUrl,
       status: "pending",
     });
     await this.submitPaymentUTR(input.registrationId, input.transactionId);
