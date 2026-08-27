@@ -53,7 +53,7 @@ export async function syncAllMediaToTelegram(dbService: any): Promise<{ syncedCo
       }
     }
 
-    // 2. Sync Coordinator & Staff Photos -> Topic 4 (Team & Staff)
+    // 2. Sync Coordinator & Staff Photos & Sports Directory Contacts -> Topic 4 (Team & Staff)
     const users = await dbService.getUsers().catch(() => []);
     for (const u of users) {
       if (u.photoUrl && (u.photoUrl.startsWith("data:") || u.photoUrl.startsWith("http"))) {
@@ -62,6 +62,23 @@ export async function syncAllMediaToTelegram(dbService: any): Promise<{ syncedCo
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ fileBase64: u.photoUrl, category: "team", fileName: u.displayName || "staff_member" }),
+          });
+          if (res.ok) syncedCount++;
+          else errorsCount++;
+        } catch {
+          errorsCount++;
+        }
+      }
+    }
+
+    const contacts = await dbService.getContacts().catch(() => []);
+    for (const c of contacts) {
+      if (c.imageUrl && (c.imageUrl.startsWith("data:") || c.imageUrl.startsWith("http"))) {
+        try {
+          const res = await fetch("/api/upload-media", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileBase64: c.imageUrl, category: "team", fileName: c.name || "authority_contact" }),
           });
           if (res.ok) syncedCount++;
           else errorsCount++;

@@ -113,7 +113,7 @@ export default function RulesContactsManagement() {
   };
 
  async function uploadContactImage(file: File): Promise<string> {
-   return await uploadMedia(file, { maxImageSizeMB: 1, maxImageWidthOrHeight: 800 });
+   return await uploadMedia(file, { maxImageSizeMB: 1, maxImageWidthOrHeight: 800, category: "team" });
  }
 
   const handleContactSubmit = async (e: React.FormEvent) => {
