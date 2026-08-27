@@ -47,7 +47,8 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isAdmin();
       allow delete: if canManageEventRegistrations(resource.data.eventId);
-      allow update: if canManageEventRegistrations(resource.data.eventId);
+      allow update: if canManageEventRegistrations(resource.data.eventId)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paymentStatus', 'utrNumber', 'paymentSubmittedAt', 'updatedAt']));
       allow create: if true;
     }
     match /registration_status/{trackingCode} {
