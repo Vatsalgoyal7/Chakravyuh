@@ -5,8 +5,8 @@ export default async function handler(req: any, res: any) {
 
   const { trackingCode, payerName, payerMobile, transactionId, amount, eventTitle, photoBase64 } = req.body;
 
-  const botToken = process.env.TELEGRAM_BOT_TOKEN || "8969139026:AAG_fnSiH828cH4tk0eAVVb1rcqhil5L9FM";
-  const chatId = process.env.TELEGRAM_CHAT_ID || "-5422078828";
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!botToken || !chatId) {
     return res.status(500).json({ error: "Telegram bot not configured" });
