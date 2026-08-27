@@ -110,9 +110,13 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifEnabled]);
 
-  // Scroll to bottom on new messages
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Scroll inner chat container to bottom on new messages (does NOT scroll parent window or sidebar)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages, selectedRoom]);
 
   async function loadInitialData() {
@@ -590,7 +594,7 @@ export default function StaffChat({ currentUser, onUpdateUser }: StaffChatProps)
         </header>
 
         {/* Chat Bubbles */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-5 space-y-4">
           {filteredMessages.map((msg) => {
             const isMe = msg.senderUid === currentUser.uid;
             const msgSender = users.find(u => u.uid === msg.senderUid) || { role: msg.senderRole, displayName: msg.senderName };

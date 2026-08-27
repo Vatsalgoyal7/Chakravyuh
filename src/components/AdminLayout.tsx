@@ -87,6 +87,11 @@ export default function AdminLayout({
     }
   }, [user.uid]);
 
+  // Reset window scroll to top when changing admin tabs
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeTab]);
+
   // Notification preference toggle in profile modal
   const notifKey = `chakravyuh_notif_${user.uid}`;
   const [notifOn, setNotifOn] = useState<boolean>(
