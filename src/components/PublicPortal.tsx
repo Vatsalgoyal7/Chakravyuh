@@ -100,7 +100,8 @@ function PublicPortalContent() {
         prizePoolAmount: Number(res.prizePoolAmount) || 100000
       });
     }).catch(console.error);
-  }, [activeTab]); // reload banner settings when tab changes/user navigates
+    window.scrollTo(0, 0);
+  }, [activeTab]); // reload banner settings & reset scroll to top when tab changes/user navigates
 
   const handleRegisterSelect = (eventId: string) => {
     setPreselectedEventId(eventId);
