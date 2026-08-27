@@ -251,6 +251,40 @@ export default function PaymentSettings() {
         )}
       </div>
 
+      {/* Screenshot Required Toggle Card */}
+      <div className="bg-[#12151a] border border-white/[0.06] rounded-2xl p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-white font-bold text-sm flex items-center gap-2">
+              <ImagePlus className="w-4 h-4 text-orange-400" />
+              Require Payment Screenshot
+            </p>
+            <p className="text-gray-500 text-[10px] mt-0.5">
+              {config.screenshotRequired
+                ? "Students must upload a screenshot or PDF receipt to submit payment proof"
+                : "Screenshot is optional — students can submit with just UTR/Transaction ID"}
+            </p>
+          </div>
+          <button
+            onClick={() => setConfig((c) => ({ ...c, screenshotRequired: !c.screenshotRequired }))}
+            className="transition-all hover:scale-105"
+          >
+            {config.screenshotRequired ? (
+              <ToggleRight className="w-10 h-10 text-orange-500" />
+            ) : (
+              <ToggleLeft className="w-10 h-10 text-gray-600" />
+            )}
+          </button>
+        </div>
+
+        {config.screenshotRequired && (
+          <div className="mt-3 flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-2 rounded-xl text-[10px]">
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            Screenshot/PDF upload will be required. Students can still submit with only UTR if no file is available.
+          </div>
+        )}
+      </div>
+
       {/* Config Fields */}
       <div className="bg-[#12151a] border border-white/[0.06] rounded-2xl p-5 space-y-5">
         <h3 className="text-white font-bold border-l-2 border-orange-500 pl-2.5">UPI Payment Details</h3>

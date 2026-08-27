@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
 import { downloadEventPassPDF } from "../lib/pdfGenerator";
+import { sendTelegramPaymentProof } from "../lib/telegramService";
 import { 
   Trophy, 
   User, 
@@ -23,7 +23,9 @@ import {
   ArrowRight,
   QrCode,
   FileText,
-  Share2
+  Share2,
+  Upload,
+  Camera
 } from "lucide-react";
 import { dbService } from "../lib/dbService";
 import { SportEvent, Registration, TeamMember, PaymentConfig } from "../types";
@@ -87,6 +89,8 @@ export default function PublicRegistration({
   const [utrSubmitted, setUtrSubmitted] = useState(false);
   const [payerName, setPayerName] = useState("");
   const [payerMobile, setPayerMobile] = useState("");
+  const [proofImageBase64, setProofImageBase64] = useState<string | null>(null);
+  const [proofFileName, setProofFileName] = useState<string>("");
   const [successData, setSuccessData] = useState<Registration | null>(null);
   const [copiedSlip, setCopiedSlip] = useState(false);
 
@@ -659,10 +663,55 @@ export default function PublicRegistration({
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <label className={`block font-bold uppercase text-[10px] ${isWhiteBg ? 'text-gray-600' : 'text-gray-400'}`}>
+                      Payment Screenshot / PDF Receipt {paymentConfig?.screenshotRequired ? <span className="text-orange-400">— Required *</span> : <span className="text-gray-500">(Optional)</span>}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        id="proofImageInput"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setProofFileName(file.name);
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setProofImageBase64(ev.target?.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      <label
+                        htmlFor="proofImageInput"
+                        className={`w-full py-3 px-4 border border-dashed rounded-2xl flex items-center justify-between cursor-pointer transition-all ${
+                          proofFileName
+                            ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-400 font-bold"
+                            : isWhiteBg
+                            ? "border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-500"
+                            : "border-white/10 bg-[#08090c] hover:bg-white/[0.02] text-gray-400"
+                        }`}
+                      >
+                        <span className="truncate text-[11px]">
+                          {proofFileName ? `✓ ${proofFileName}` : paymentConfig?.screenshotRequired ? "📁 Upload screenshot or PDF receipt (Required)" : "📁 Click to upload UPI screenshot or PDF (Optional)"}
+                        </span>
+                        <Camera className="w-4 h-4 shrink-0 text-orange-400" />
+                      </label>
+                    </div>
+                  </div>
+
                   <button
-                    disabled={utrInput.trim().length < 6 || utrSubmitting || payerName.trim().length < 2 || payerMobile.trim().length < 10}
+                    disabled={(
+                      paymentConfig?.screenshotRequired
+                        ? (utrInput.trim().length < 6 && !proofImageBase64) // when required: need UTR OR file
+                        : utrInput.trim().length < 6                         // when optional: need UTR only
+                    ) || utrSubmitting || payerName.trim().length < 2 || payerMobile.trim().length < 10}
                     onClick={async () => {
-                      if (!successData || utrInput.trim().length < 6 || payerName.trim().length < 2 || payerMobile.trim().length < 10) return;
+                      if (!successData || payerName.trim().length < 2 || payerMobile.trim().length < 10) return;
+                      if (paymentConfig?.screenshotRequired && utrInput.trim().length < 6 && !proofImageBase64) return;
+                      if (!paymentConfig?.screenshotRequired && utrInput.trim().length < 6) return;
                       setUtrSubmitting(true);
                       try {
                         await dbService.submitPaymentProof({
@@ -672,7 +721,21 @@ export default function PublicRegistration({
                           payerMobile: payerMobile.trim(),
                           transactionId: utrInput.trim(),
                           amount: amount,
+                          paymentProofUrl: proofImageBase64 || undefined,
                         });
+
+                        // Post live notification & photo to Telegram group
+                        sendTelegramPaymentProof({
+                          registrationId: successData.id,
+                          trackingCode: successData.trackingCode,
+                          payerName: payerName.trim(),
+                          payerMobile: payerMobile.trim(),
+                          transactionId: utrInput.trim(),
+                          amount: amount,
+                          eventTitle: selectedEvent?.title || successData.eventTitle,
+                          photoBase64: proofImageBase64 || undefined,
+                        }).catch(err => console.warn("Telegram notification warning:", err));
+
                         setUtrSubmitted(true);
                       } catch (err) {
                         console.error(err);

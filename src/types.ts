@@ -490,6 +490,8 @@ export interface Registration {
 
   utrNumber?: string;        // Transaction ID / UTR submitted by user
 
+  paymentProofUrl?: string;   // Telegram photo URL / link for payment screenshot proof
+
 
 
   paymentSubmittedAt?: string;
@@ -591,6 +593,8 @@ export interface PaymentConfig {
 
 
   instructions: string;      // Custom instructions for students
+
+  screenshotRequired?: boolean; // Toggle: screenshot/PDF upload mandatory for payment proof
 
 
 
@@ -1048,6 +1052,7 @@ export interface PaymentVerification {
   payerMobile: string;
   transactionId: string;
   amount: number;
+  paymentProofUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
   verifiedAt?: string;
