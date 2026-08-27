@@ -8,7 +8,7 @@ const isCloudinaryConfigured = Boolean(cloudName && uploadPreset);
 
 export async function uploadMedia(
   file: File,
-  options?: { maxImageSizeMB?: number; maxImageWidthOrHeight?: number }
+  options?: { maxImageSizeMB?: number; maxImageWidthOrHeight?: number; category?: "gallery" | "team" | "qr_video" }
 ): Promise<string> {
   let compressedFile = file;
 
@@ -32,38 +32,35 @@ export async function uploadMedia(
     }
   }
 
-  // 2. Try Firebase Storage if configured (with fast 3-second CORS timeout)
-  if (isFirebaseConfigured && storage && !window.location.hostname.includes("workers.dev")) {
-    try {
-      const storageRef = ref(storage, `uploads/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`);
-      
-      const uploadPromise = uploadBytes(storageRef, compressedFile);
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 3000)
-      );
-
-      const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
-    } catch (err) {
-      console.warn("Firebase Storage upload blocked or timed out, using instant compressed Data URL:", err);
-    }
-  }
-
-  // 4. Fast Fallback: Base64 data URL
-  const finalFile = compressedFile;
-  if (file.type.startsWith("video/")) {
-    if (file.size > 1.5 * 1024 * 1024) {
-      throw new Error("Video file is too large for local database storage (max 1.5MB offline). Please configure Firebase Storage or use a smaller video.");
-    }
-  }
-
-  return new Promise((resolve, reject) => {
+  // 2. Read file as Base64 for Telegram Upload API
+  const base64Data: string = await new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(finalFile);
+    reader.readAsDataURL(compressedFile);
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
+    reader.onerror = (err) => reject(err);
   });
+
+  // 3. Try Telegram Bot Media Storage API
+  try {
+    const res = await fetch("/api/upload-media", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileBase64: base64Data,
+        category: options?.category || "gallery",
+        fileName: file.name,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return data.fileUrl || base64Data;
+    }
+  } catch (err) {
+    console.warn("Telegram Media Upload API warning, using local fallback:", err);
+  }
+
+  // 4. Fallback: Base64 Data URL
+  return base64Data;
 }
 
 export const isVideo = (url: string) => {

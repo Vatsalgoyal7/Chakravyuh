@@ -3,10 +3,11 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { trackingCode, payerName, payerMobile, transactionId, amount, eventTitle, photoBase64 } = req.body;
+  const { trackingCode, payerName, payerMobile, transactionId, amount, eventTitle, photoBase64, threadId } = req.body;
 
   const botToken = process.env.TELEGRAM_BOT_TOKEN || "8969139026:AAG_fnSiH828cH4tk0eAVVb1rcqhil5L9FM";
-  const chatId = process.env.TELEGRAM_CHAT_ID || "-5422078828";
+  const chatId = process.env.TELEGRAM_CHAT_ID || "-1004393512496";
+  const messageThreadId = threadId || 8; // Topic 8 = Payment Proofs
 
   if (!botToken || !chatId) {
     return res.status(500).json({ error: "Telegram bot not configured" });
@@ -33,6 +34,9 @@ export default async function handler(req: any, res: any) {
 
       body += `--${Boundary}\r\n`;
       body += `Content-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`;
+
+      body += `--${Boundary}\r\n`;
+      body += `Content-Disposition: form-data; name="message_thread_id"\r\n\r\n${messageThreadId}\r\n`;
 
       body += `--${Boundary}\r\n`;
       body += `Content-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`;
@@ -74,6 +78,7 @@ export default async function handler(req: any, res: any) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
+          message_thread_id: messageThreadId,
           text: caption,
           parse_mode: "Markdown",
         }),

@@ -13,6 +13,7 @@ import {
   Upload,
   Video,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 export default function GalleryManagement() {
@@ -190,13 +191,34 @@ export default function GalleryManagement() {
         </div>
 
         {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-orange-500/10"
-          >
-            <Plus className="w-4 h-4" />
-            Upload Media
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                const confirmed = confirm("Do you want to sync all existing Gallery, Coordinator photos, and Payment QRs/Videos into their respective Telegram Topics?");
+                if (!confirmed) return;
+                try {
+                  const { syncAllMediaToTelegram } = await import("../lib/telegramService");
+                  alert("Starting sync to Telegram Topics... Please wait a moment.");
+                  const { syncedCount, errorsCount } = await syncAllMediaToTelegram(dbService);
+                  alert(`Sync Completed! Synced: ${syncedCount} items successfully to Telegram Topics.`);
+                } catch (err: any) {
+                  console.error(err);
+                  alert("Failed to sync media to Telegram: " + (err.message || "Unknown error"));
+                }
+              }}
+              className="px-3.5 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 font-bold rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer font-mono"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Sync Media to Telegram
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-orange-500/10 cursor-pointer font-mono"
+            >
+              <Plus className="w-4 h-4" />
+              Upload Media
+            </button>
+          </div>
         )}
       </div>
 

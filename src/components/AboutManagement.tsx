@@ -47,7 +47,7 @@ export default function AboutManagement() {
 
     setIsVideoUploading(true);
     try {
-      const url = await uploadMedia(file);
+      const url = await uploadMedia(file, { category: "qr_video" });
       setVideoUrl(url);
     } catch (err: any) {
       console.error(err);
@@ -120,7 +120,7 @@ export default function AboutManagement() {
 
     setUploadingIds(prev => ({ ...prev, [profileId]: true }));
     try {
-      const url = await uploadMedia(file, { maxImageSizeMB: 1, maxImageWidthOrHeight: 800 });
+      const url = await uploadMedia(file, { maxImageSizeMB: 1, maxImageWidthOrHeight: 800, category: "team" });
       updateProfileField(profileId, "photoUrl", url);
     } catch (err: any) {
       console.error(err);
