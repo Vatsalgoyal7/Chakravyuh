@@ -24,7 +24,8 @@ export default async function handler(req: any, res: any) {
       `⏰ *Submitted At:* ${new Date().toLocaleString("en-IN")}`;
 
     if (photoBase64) {
-      const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "");
+      const isPdf = photoBase64.startsWith("data:application/pdf");
+      const base64Data = photoBase64.replace(/^data:(image\/\w+|application\/pdf);base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
 
       const Boundary = "----TelegramUploadBoundary" + Date.now();
@@ -39,15 +40,20 @@ export default async function handler(req: any, res: any) {
       body += `--${Boundary}\r\n`;
       body += `Content-Disposition: form-data; name="parse_mode"\r\n\r\nMarkdown\r\n`;
 
+      const fieldName = isPdf ? "document" : "photo";
+      const fileName = isPdf ? "payment_receipt.pdf" : "receipt.jpg";
+      const contentType = isPdf ? "application/pdf" : "image/jpeg";
+      const apiEndpoint = isPdf ? "sendDocument" : "sendPhoto";
+
       body += `--${Boundary}\r\n`;
-      body += `Content-Disposition: form-data; name="photo"; filename="receipt.jpg"\r\n`;
-      body += `Content-Type: image/jpeg\r\n\r\n`;
+      body += `Content-Disposition: form-data; name="${fieldName}"; filename="${fileName}"\r\n`;
+      body += `Content-Type: ${contentType}\r\n\r\n`;
 
       const headerBuffer = Buffer.from(body, "utf-8");
       const footerBuffer = Buffer.from(`\r\n--${Boundary}--\r\n`, "utf-8");
       const multipartBody = Buffer.concat([headerBuffer, buffer, footerBuffer]);
 
-      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/${apiEndpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": `multipart/form-data; boundary=${Boundary}`,
@@ -57,7 +63,7 @@ export default async function handler(req: any, res: any) {
 
       const data = await response.json();
       if (!response.ok) {
-        console.error("Telegram sendPhoto error:", data);
+        console.error(`Telegram ${apiEndpoint} error:`, data);
         return res.status(response.status).json({ error: data.description || "Failed to post to Telegram" });
       }
 
