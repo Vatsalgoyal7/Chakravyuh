@@ -37,10 +37,9 @@ service cloud.firestore {
           && request.resource.data.role == 'coordinator'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'assignedSports', 'scope', 'suspended', 'updatedAt']))
         || (signedIn() && request.auth.uid == userId
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'phone', 'rollNo', 'branch', 'residency', 'roomNo', 'updatedAt'])
           && request.resource.data.role == resource.data.role
-          && request.resource.data.assignedSports == resource.data.assignedSports
-          && request.resource.data.suspended == resource.data.suspended);
+          && (isSuperAdmin() || !('assignedSports' in resource.data) || request.resource.data.assignedSports == resource.data.assignedSports)
+          && (isSuperAdmin() || !('suspended' in resource.data) || request.resource.data.suspended == resource.data.suspended));
     }
 
     match /events/{eventId} {
