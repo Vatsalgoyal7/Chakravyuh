@@ -28,11 +28,19 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
-      allow create: if (request.auth.uid == userId && isSafePendingProfile()) || isSuperAdmin();
+      allow create: if (request.auth.uid == userId && isSafePendingProfile())
+        || isSuperAdmin()
+        || (isGeneralAdmin() && request.resource.data.role in ['admin', 'coordinator'])
+        || (isCategoryAdmin() && request.resource.data.role == 'coordinator');
       allow update, delete: if isSuperAdmin()
         || (isCategoryAdmin() && resource.data.role == 'coordinator'
           && request.resource.data.role == 'coordinator'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'assignedSports', 'scope', 'suspended', 'updatedAt']));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'assignedSports', 'scope', 'suspended', 'updatedAt']))
+        || (signedIn() && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'phone', 'rollNo', 'branch', 'residency', 'roomNo', 'updatedAt'])
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.assignedSports == resource.data.assignedSports
+          && request.resource.data.suspended == resource.data.suspended);
     }
 
     match /events/{eventId} {

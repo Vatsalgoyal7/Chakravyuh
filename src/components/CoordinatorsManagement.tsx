@@ -339,8 +339,12 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
                   onChange={(e) => setInviteRole(e.target.value as any)}
                 >
                   <option value="coordinator">Coordinator</option>
-                  <option value="admin">Admin (Mid-tier)</option>
-                  <option value="super_admin">Super Admin</option>
+                  {(currentUser.role === "super_admin" || (currentUser.role === "admin" && (currentUser.adminCategory || "General").toLowerCase() === "general")) && (
+                    <option value="admin">Admin (Mid-tier)</option>
+                  )}
+                  {currentUser.role === "super_admin" && (
+                    <option value="super_admin">Super Admin</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -481,12 +485,13 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
                 >
                   <option value="pending">Pending Registration</option>
                   <option value="coordinator">Coordinator</option>
-                  {/* Admin and Super Admin options — super_admin only */}
-                  {currentUser.role === 'super_admin' && (
-                    <>
-                      <option value="admin">Admin (Mid-tier)</option>
-                      <option value="super_admin">Super Admin</option>
-                    </>
+                  {/* Admin option — super_admin or general admin */}
+                  {(currentUser.role === "super_admin" || (currentUser.role === "admin" && (currentUser.adminCategory || "General").toLowerCase() === "general")) && (
+                    <option value="admin">Admin (Mid-tier)</option>
+                  )}
+                  {/* Super Admin option — super_admin only */}
+                  {currentUser.role === "super_admin" && (
+                    <option value="super_admin">Super Admin</option>
                   )}
                 </select>
               </div>
@@ -581,22 +586,23 @@ export default function CoordinatorsManagement({ currentUser }: CoordinatorsMana
                   >
                     Approve as Coordinator
                   </button>
-                  {/* Super Admin only: Approve as Admin or Super Admin */}
+                  {/* General Admin & Super Admin: Approve as Admin */}
+                  {(currentUser.role === "super_admin" || (currentUser.role === "admin" && (currentUser.adminCategory || "General").toLowerCase() === "general")) && (
+                    <button
+                      onClick={() => handleApprovePending(user, 'admin')}
+                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
+                    >
+                      Approve as Admin
+                    </button>
+                  )}
+                  {/* Super Admin only: Approve as Super Admin */}
                   {currentUser.role === 'super_admin' && (
-                    <>
-                      <button
-                        onClick={() => handleApprovePending(user, 'admin')}
-                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
-                      >
-                        Approve as Admin
-                      </button>
-                      <button
-                        onClick={() => handleApprovePending(user, 'super_admin')}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
-                      >
-                        Approve as Super Admin
-                      </button>
-                    </>
+                    <button
+                      onClick={() => handleApprovePending(user, 'super_admin')}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-lg text-[10px] font-mono transition-all cursor-pointer"
+                    >
+                      Approve as Super Admin
+                    </button>
                   )}
                   <button
                     onClick={() => handleDeleteClick(user.uid, user.displayName)}
