@@ -80,6 +80,17 @@ export default function PublicRegistration({
   // Team members state
   const [members, setMembers] = useState<TeamMember[]>([]);
   
+  // Sync team members default college with captain's leadCollege
+  useEffect(() => {
+    if (leadCollege && leadCollege.trim()) {
+      const targetCollege = leadCollege.trim();
+      setMembers(prev => prev.map(m => ({
+        ...m,
+        college: (!m.college || m.college === "IMS Engineering College" || m.college === "") ? targetCollege : m.college
+      })));
+    }
+  }, [leadCollege]);
+  
   // Submit status
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
