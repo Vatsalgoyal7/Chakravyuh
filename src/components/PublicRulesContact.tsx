@@ -122,13 +122,10 @@ export default function PublicRulesContact() {
 
         ) : (
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="space-y-10">
 
-            
-
-            {/* Rules Block: 7 cols */}
-
-            <div className="lg:col-span-7 space-y-6">
+            {/* Section 1: Rules & Code of Conduct (Full Width) */}
+            <div className="space-y-4">
 
               <div className={`flex items-center gap-2 mb-2 pb-2 border-b ${isWhiteBg ? 'border-gray-300 text-gray-900' : 'border-gray-800 text-white'}`}>
 
@@ -156,7 +153,7 @@ export default function PublicRulesContact() {
 
               ) : (
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                   {rules.map((rule) => (
 
@@ -194,9 +191,9 @@ export default function PublicRulesContact() {
 
 
 
-            {/* Organizing Committee: 5 cols */}
+            {/* Section 2: Committee Directory (Full Width 4-Column Grid) */}
 
-            <div className="lg:col-span-5 space-y-6">
+            <div className={`space-y-6 pt-6 border-t ${isWhiteBg ? 'border-gray-300' : 'border-white/[0.06]'}`}>
 
               <div className={`flex items-center gap-2 mb-2 pb-2 border-b ${isWhiteBg ? 'border-gray-300 text-gray-900' : 'border-white/[0.06] text-white'}`}>
 
@@ -332,7 +329,7 @@ export default function PublicRulesContact() {
 
                       </h4>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
 
                         {contacts.filter(co => 
 
@@ -504,7 +501,7 @@ export default function PublicRulesContact() {
 
                       </h4>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
 
                         {contacts.filter(co => 
 
