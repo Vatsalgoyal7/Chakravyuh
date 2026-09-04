@@ -80,14 +80,20 @@ export default function PublicRegistration({
   // Team members state
   const [members, setMembers] = useState<TeamMember[]>([]);
   
-  // Sync team members default college with captain's leadCollege
+  // Sync team members default college dynamically with captain's leadCollege
+  const prevLeadCollegeRef = React.useRef(leadCollege);
+
   useEffect(() => {
-    if (leadCollege && leadCollege.trim()) {
-      const targetCollege = leadCollege.trim();
-      setMembers(prev => prev.map(m => ({
-        ...m,
-        college: (!m.college || m.college === "IMS Engineering College" || m.college === "") ? targetCollege : m.college
-      })));
+    const prev = prevLeadCollegeRef.current;
+    const current = leadCollege;
+    if (current !== prev) {
+      setMembers(prevMembers => prevMembers.map(m => {
+        if (!m.college || m.college === "" || m.college === "IMS Engineering College" || m.college === prev) {
+          return { ...m, college: current };
+        }
+        return m;
+      }));
+      prevLeadCollegeRef.current = current;
     }
   }, [leadCollege]);
   
