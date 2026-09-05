@@ -3521,13 +3521,24 @@ export const dbService = {
 
     const byEvent = events.map((ev) => {
       const evVerified = verifiedRegs.filter((r) => r.eventId === ev.id);
-      const evFee = ev.registrationFee !== undefined ? ev.registrationFee : globalFee;
+      // Calculate revenue per registration respecting gender-specific fees
+      const estimatedRevenue = evVerified.reduce((sum, r) => {
+        let fee = ev.registrationFee !== undefined ? ev.registrationFee : globalFee;
+        if (ev.hasGenderRules) {
+          if (r.gender === "male" && ev.maleRules?.registrationFee !== undefined) {
+            fee = ev.maleRules.registrationFee;
+          } else if (r.gender === "female" && ev.femaleRules?.registrationFee !== undefined) {
+            fee = ev.femaleRules.registrationFee;
+          }
+        }
+        return sum + fee;
+      }, 0);
       return {
         eventId: ev.id,
         eventTitle: ev.title,
         sportType: ev.type,
         verifiedCount: evVerified.length,
-        estimatedRevenue: evVerified.length * evFee,
+        estimatedRevenue,
       };
     });
 
