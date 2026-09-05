@@ -9,8 +9,8 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "No file content provided" });
   }
 
-  const botToken = process.env.TELEGRAM_BOT_TOKEN || "8969139026:AAG_fnSiH828cH4tk0eAVVb1rcqhil5L9FM";
-  const chatId = process.env.TELEGRAM_CHAT_ID || "-1004393512496";
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
 
   // Map category to Telegram Topic Thread IDs
   // 6 = Gallery Vault, 4 = Team & Staff, 2 = QRs & Videos

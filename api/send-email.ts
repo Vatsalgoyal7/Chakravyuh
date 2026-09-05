@@ -11,8 +11,8 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Missing required fields: to, subject, html" });
   }
 
-  const gmailUser = process.env.GMAIL_USER || "vatsalgoyal71@gmail.com";
-  const gmailPass = process.env.GMAIL_APP_PASSWORD || "ygmscxzwnbzvjuqv";
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
 
   if (!gmailUser || !gmailPass) {
     return res.status(500).json({ error: "Gmail SMTP credentials not configured" });

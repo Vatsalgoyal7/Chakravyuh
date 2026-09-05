@@ -5,8 +5,8 @@ export default async function handler(req: any, res: any) {
 
   const { trackingCode, payerName, payerMobile, transactionId, amount, eventTitle, photoBase64, threadId } = req.body;
 
-  const botToken = process.env.TELEGRAM_BOT_TOKEN || "8969139026:AAG_fnSiH828cH4tk0eAVVb1rcqhil5L9FM";
-  const chatId = process.env.TELEGRAM_CHAT_ID || "-1004393512496";
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
   const messageThreadId = threadId || 8; // Topic 8 = Payment Proofs
 
   if (!botToken || !chatId) {
