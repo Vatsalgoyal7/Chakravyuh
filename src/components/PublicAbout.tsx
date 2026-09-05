@@ -160,6 +160,42 @@ export default function PublicAbout() {
 
           </div>
 
+          {/* CUSTOM USEFUL LINKS & LOCATIONS */}
+          {about.customLinks && about.customLinks.filter(l => l.enabled !== false).length > 0 && (
+            <div className="mt-8 border-t border-white/10 pt-8">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-widest text-orange-400 mb-4 flex items-center gap-2">
+                <ExternalLink className="w-4 h-4 text-orange-500" />
+                Useful Links & Locations
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {about.customLinks.filter(l => l.enabled !== false).map((link) => (
+                  <a
+                    key={link.id}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-orange-500/10 hover:border-orange-500/40 transition-all flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 text-sm font-bold text-white group-hover:text-orange-400 transition-colors mb-1">
+                        <span className="truncate">{link.title}</span>
+                        <ExternalLink className="w-4 h-4 text-orange-500 shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                      </div>
+                      {link.description && (
+                        <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
+                          {link.description}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-orange-500 font-mono mt-3 font-semibold tracking-wider uppercase">
+                      Open Link &rarr;
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
 
       </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { dbService } from "../lib/dbService";
-import { AboutSection, LeadershipProfile } from "../types";
+import { AboutSection, LeadershipProfile, AboutLink } from "../types";
 import { uploadMedia } from "../lib/uploadService";
 import { 
   Loader2, 
@@ -32,6 +32,7 @@ export default function AboutManagement() {
   const [missionText, setMissionText] = useState("");
   const [sportsQuote, setSportsQuote] = useState("");
   const [profiles, setProfiles] = useState<LeadershipProfile[]>([]);
+  const [customLinks, setCustomLinks] = useState<AboutLink[]>([]);
 
   // Homepage video settings
   const [videoUrl, setVideoUrl] = useState("");
@@ -82,6 +83,7 @@ export default function AboutManagement() {
         setMissionText((data.mission || []).join("\n"));
         setSportsQuote(data.sportsQuote || "");
         setProfiles(data.profiles || []);
+        setCustomLinks(data.customLinks || []);
       }
     } catch (err) {
       console.error("Failed to load about data", err);
@@ -108,6 +110,27 @@ export default function AboutManagement() {
   const updateProfileField = (id: string, field: keyof LeadershipProfile, value: string) => {
     setProfiles(
       profiles.map(p => (p.id === id ? { ...p, [field]: value } : p))
+    );
+  };
+
+  const addCustomLink = () => {
+    const newLink: AboutLink = {
+      id: `link_${Date.now()}`,
+      title: "",
+      url: "",
+      description: "",
+      enabled: true
+    };
+    setCustomLinks([...customLinks, newLink]);
+  };
+
+  const removeCustomLink = (id: string) => {
+    setCustomLinks(customLinks.filter(l => l.id !== id));
+  };
+
+  const updateCustomLinkField = (id: string, field: keyof AboutLink, value: any) => {
+    setCustomLinks(
+      customLinks.map(l => (l.id === id ? { ...l, [field]: value } : l))
     );
   };
 
@@ -166,6 +189,13 @@ export default function AboutManagement() {
         name: p.name.trim(),
         photoUrl: p.photoUrl.trim(),
         quote: p.quote.trim()
+      })),
+      customLinks: customLinks.map(l => ({
+        id: l.id,
+        title: l.title.trim(),
+        url: l.url.trim(),
+        description: (l.description || "").trim(),
+        enabled: l.enabled
       })),
       updatedAt: new Date().toISOString()
     };
@@ -447,6 +477,106 @@ export default function AboutManagement() {
         )}
 
         {/* Submit */}
+        {/* ══ CUSTOM LINKS & LOCATIONS ══ */}
+        <div className="pt-6 border-t border-gray-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm uppercase tracking-wider font-bold text-orange-500 font-mono flex items-center gap-2">
+                <ExternalLink className="w-4 h-4" />
+                <span>Custom Useful Links & Campus Locations</span>
+              </h3>
+              <p className="text-[11px] text-gray-500 font-mono mt-0.5">
+                Add Google Maps links, official portal URLs, brochure downloads with On/Off controls.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addCustomLink}
+              className="px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Custom Link</span>
+            </button>
+          </div>
+
+          {customLinks.length === 0 ? (
+            <div className="p-4 rounded-xl border border-dashed border-gray-800 text-center font-mono text-xs text-gray-500">
+              No custom links added yet. Click "+ Add Custom Link" to add location maps or portal links.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {customLinks.map((link, idx) => (
+                <div key={link.id || idx} className="bg-[#0d0f12] border border-gray-800 p-4 rounded-2xl space-y-3 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-orange-400">
+                      Link #{idx + 1}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      {/* On/Off Switch */}
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-gray-300">
+                        <span>{link.enabled ? "ACTIVE (ON)" : "HIDDEN (OFF)"}</span>
+                        <button
+                          type="button"
+                          onClick={() => updateCustomLinkField(link.id, "enabled", !link.enabled)}
+                          className="cursor-pointer"
+                        >
+                          {link.enabled ? (
+                            <ToggleRight className="w-6 h-6 text-emerald-400" />
+                          ) : (
+                            <ToggleLeft className="w-6 h-6 text-gray-600" />
+                          )}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeCustomLink(link.id)}
+                        className="p-1 hover:bg-red-500/20 text-red-400 rounded-lg transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-gray-400 font-mono">Link Title / Label *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Google Maps Location / Official Website"
+                        value={link.title}
+                        onChange={(e) => updateCustomLinkField(link.id, "title", e.target.value)}
+                        className="w-full px-3 py-2 bg-[#12141a] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white outline-none font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-gray-400 font-mono">Target URL / Link *</label>
+                      <input
+                        type="url"
+                        placeholder="https://maps.app.goo.gl/..."
+                        value={link.url}
+                        onChange={(e) => updateCustomLinkField(link.id, "url", e.target.value)}
+                        className="w-full px-3 py-2 bg-[#12141a] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] text-gray-500 font-mono">Optional Short Description</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Click to open campus Google Maps directions"
+                      value={link.description || ""}
+                      onChange={(e) => updateCustomLinkField(link.id, "description", e.target.value)}
+                      className="w-full px-3 py-2 bg-[#12141a] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-gray-300 outline-none font-mono"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-3 pt-6 border-t border-gray-800">
           <button
             type="submit"

@@ -881,6 +881,14 @@ export interface LeadershipProfile {
 
 
 
+export interface AboutLink {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  enabled: boolean;
+}
+
 export interface AboutSection {
 
 
@@ -954,6 +962,10 @@ export interface AboutSection {
 
 
 
+
+
+
+  customLinks?: AboutLink[];
 
 
 
