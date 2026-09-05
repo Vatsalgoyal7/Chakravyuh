@@ -41,6 +41,23 @@ export default function EventsManagement() {
   const [registrationFee, setRegistrationFee] = useState<number | string>("");
   const [isUploading, setIsUploading] = useState(false);
 
+  // Gender-specific & Prize Pool states
+  const [hasGenderRules, setHasGenderRules] = useState(false);
+  const [maleMinTeamSize, setMaleMinTeamSize] = useState<number>(5);
+  const [maleMaxTeamSize, setMaleMaxTeamSize] = useState<number>(7);
+  const [maleRegistrationFee, setMaleRegistrationFee] = useState<number | string>("");
+  const [malePrizePoolEnabled, setMalePrizePoolEnabled] = useState(false);
+  const [malePrizePoolAmount, setMalePrizePoolAmount] = useState("");
+
+  const [femaleMinTeamSize, setFemaleMinTeamSize] = useState<number>(2);
+  const [femaleMaxTeamSize, setFemaleMaxTeamSize] = useState<number>(4);
+  const [femaleRegistrationFee, setFemaleRegistrationFee] = useState<number | string>("");
+  const [femalePrizePoolEnabled, setFemalePrizePoolEnabled] = useState(false);
+  const [femalePrizePoolAmount, setFemalePrizePoolAmount] = useState("");
+
+  const [prizePoolEnabled, setPrizePoolEnabled] = useState(false);
+  const [prizePoolAmount, setPrizePoolAmount] = useState("");
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -104,6 +121,19 @@ export default function EventsManagement() {
     setMaxRegistrations(32);
     setIsActive(true);
     setRegistrationFee("");
+    setHasGenderRules(false);
+    setMaleMinTeamSize(5);
+    setMaleMaxTeamSize(7);
+    setMaleRegistrationFee("");
+    setMalePrizePoolEnabled(false);
+    setMalePrizePoolAmount("");
+    setFemaleMinTeamSize(2);
+    setFemaleMaxTeamSize(4);
+    setFemaleRegistrationFee("");
+    setFemalePrizePoolEnabled(false);
+    setFemalePrizePoolAmount("");
+    setPrizePoolEnabled(false);
+    setPrizePoolAmount("");
     setCoordinators([{ name: "", phone: "", email: "" }]);
     setIsEditing(false);
     setEditId(null);
@@ -121,6 +151,24 @@ export default function EventsManagement() {
     setVenue(event.venue);
     setImage(event.image);
     setRegistrationFee(event.registrationFee !== undefined ? event.registrationFee : "");
+    
+    // Gender rules & prize pool fields
+    setHasGenderRules(event.hasGenderRules || false);
+    setMaleMinTeamSize(event.maleRules?.minTeamSize ?? event.minTeamSize ?? 5);
+    setMaleMaxTeamSize(event.maleRules?.maxTeamSize ?? event.maxTeamSize ?? 7);
+    setMaleRegistrationFee(event.maleRules?.registrationFee !== undefined ? event.maleRules.registrationFee : "");
+    setMalePrizePoolEnabled(event.maleRules?.prizePoolEnabled || false);
+    setMalePrizePoolAmount(event.maleRules?.prizePoolAmount || "");
+
+    setFemaleMinTeamSize(event.femaleRules?.minTeamSize ?? event.minTeamSize ?? 2);
+    setFemaleMaxTeamSize(event.femaleRules?.maxTeamSize ?? event.maxTeamSize ?? 4);
+    setFemaleRegistrationFee(event.femaleRules?.registrationFee !== undefined ? event.femaleRules.registrationFee : "");
+    setFemalePrizePoolEnabled(event.femaleRules?.prizePoolEnabled || false);
+    setFemalePrizePoolAmount(event.femaleRules?.prizePoolAmount || "");
+
+    setPrizePoolEnabled(event.prizePoolEnabled || false);
+    setPrizePoolAmount(event.prizePoolAmount || "");
+
     // Format date string to fit datetime-local input "yyyy-MM-ddThh:mm"
     if (event.registrationDeadline) {
       try {
@@ -147,6 +195,17 @@ export default function EventsManagement() {
       return;
     }
 
+    if (hasGenderRules && sportType === "team") {
+      if (Number(maleMinTeamSize) > Number(maleMaxTeamSize)) {
+        alert("Male Category: Min Team Size cannot be greater than Max Team Size.");
+        return;
+      }
+      if (Number(femaleMinTeamSize) > Number(femaleMaxTeamSize)) {
+        alert("Female Category: Min Team Size cannot be greater than Max Team Size.");
+        return;
+      }
+    }
+
     // Filter empty coordinators
     const filteredCoordinators = coordinators.filter(c => c.name.trim() !== "");
 
@@ -164,6 +223,23 @@ export default function EventsManagement() {
       registrationFee: registrationFee !== "" ? Number(registrationFee) : undefined,
       isActive,
       coordinators: filteredCoordinators,
+      hasGenderRules,
+      maleRules: hasGenderRules ? {
+        minTeamSize: sportType === "individual" ? 1 : Number(maleMinTeamSize),
+        maxTeamSize: sportType === "individual" ? 1 : Number(maleMaxTeamSize),
+        registrationFee: maleRegistrationFee !== "" ? Number(maleRegistrationFee) : undefined,
+        prizePoolEnabled: malePrizePoolEnabled,
+        prizePoolAmount: malePrizePoolEnabled ? malePrizePoolAmount.trim() : ""
+      } : undefined,
+      femaleRules: hasGenderRules ? {
+        minTeamSize: sportType === "individual" ? 1 : Number(femaleMinTeamSize),
+        maxTeamSize: sportType === "individual" ? 1 : Number(femaleMaxTeamSize),
+        registrationFee: femaleRegistrationFee !== "" ? Number(femaleRegistrationFee) : undefined,
+        prizePoolEnabled: femalePrizePoolEnabled,
+        prizePoolAmount: femalePrizePoolEnabled ? femalePrizePoolAmount.trim() : ""
+      } : undefined,
+      prizePoolEnabled,
+      prizePoolAmount: prizePoolEnabled ? prizePoolAmount.trim() : ""
     };
 
     try {
@@ -372,6 +448,203 @@ export default function EventsManagement() {
                 />
               </div>
 
+            </div>
+
+            {/* Gender Rules & Prize Pool Configurations */}
+            <div className="bg-[#0d0f12] p-5 rounded-2xl border border-orange-500/20 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-800 pb-4">
+                <div>
+                  <h4 className="text-xs font-bold text-orange-400 font-mono flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-orange-500" />
+                    <span>Gender-Specific Rules & Winning Prize Pool</span>
+                  </h4>
+                  <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                    Separate team limits, registration fees, and prize pools for Male vs Female categories.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs font-bold font-mono text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasGenderRules}
+                      onChange={(e) => setHasGenderRules(e.target.checked)}
+                      className="w-4 h-4 accent-orange-500 rounded cursor-pointer"
+                    />
+                    <span>Separate Male / Female Rules</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Global Prize Pool (When Gender Rules OFF) */}
+              {!hasGenderRules && (
+                <div className="p-4 rounded-xl bg-[#12141a] border border-gray-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-xs font-bold font-mono text-amber-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={prizePoolEnabled}
+                        onChange={(e) => setPrizePoolEnabled(e.target.checked)}
+                        className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                      />
+                      <span>Enable Winning Prize Pool (Upto Amount)</span>
+                    </label>
+                  </div>
+                  {prizePoolEnabled && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-mono text-gray-400">Prize Pool / Winning Amount (Text or ₹)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Upto ₹10,000 or Trophies + ₹5,000 Cash"
+                        value={prizePoolAmount}
+                        onChange={(e) => setPrizePoolAmount(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-amber-500 rounded-xl text-xs text-white placeholder-gray-600 outline-none font-mono"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Gender Specific Configuration Panels */}
+              {hasGenderRules && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-2">
+                  
+                  {/* Male Category Configuration */}
+                  <div className="p-4 rounded-2xl bg-[#12141a] border border-sky-500/20 space-y-4">
+                    <div className="flex items-center justify-between border-b border-sky-500/20 pb-2">
+                      <span className="text-xs font-black uppercase tracking-wider font-mono text-sky-400">♂️ Male Category Settings</span>
+                    </div>
+
+                    {sportType === "team" && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-[10px] text-gray-400 font-mono">Min Team Size</label>
+                          <input
+                            type="number"
+                            min="2"
+                            max="30"
+                            value={maleMinTeamSize}
+                            onChange={(e) => setMaleMinTeamSize(Number(e.target.value))}
+                            className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-sky-500 rounded-xl text-xs text-white font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] text-gray-400 font-mono">Max Team Size</label>
+                          <input
+                            type="number"
+                            min="2"
+                            max="30"
+                            value={maleMaxTeamSize}
+                            onChange={(e) => setMaleMaxTeamSize(Number(e.target.value))}
+                            className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-sky-500 rounded-xl text-xs text-white font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-sky-400 font-mono font-bold">Male Registration Fee (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 2500"
+                        value={maleRegistrationFee}
+                        onChange={(e) => setMaleRegistrationFee(e.target.value === "" ? "" : Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-sky-500 rounded-xl text-xs text-white placeholder-gray-600 font-mono"
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-white/[0.05] space-y-2">
+                      <label className="flex items-center gap-2 text-[11px] font-bold font-mono text-amber-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={malePrizePoolEnabled}
+                          onChange={(e) => setMalePrizePoolEnabled(e.target.checked)}
+                          className="w-3.5 h-3.5 accent-amber-500 rounded cursor-pointer"
+                        />
+                        <span>Male Prize Pool / Winning Upto</span>
+                      </label>
+                      {malePrizePoolEnabled && (
+                        <input
+                          type="text"
+                          placeholder="e.g. Upto ₹10,000"
+                          value={malePrizePoolAmount}
+                          onChange={(e) => setMalePrizePoolAmount(e.target.value)}
+                          className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-amber-500 rounded-xl text-xs text-white placeholder-gray-600 font-mono"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Female Category Configuration */}
+                  <div className="p-4 rounded-2xl bg-[#12141a] border border-pink-500/20 space-y-4">
+                    <div className="flex items-center justify-between border-b border-pink-500/20 pb-2">
+                      <span className="text-xs font-black uppercase tracking-wider font-mono text-pink-400">♀️ Female Category Settings</span>
+                    </div>
+
+                    {sportType === "team" && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="block text-[10px] text-gray-400 font-mono">Min Team Size</label>
+                          <input
+                            type="number"
+                            min="2"
+                            max="30"
+                            value={femaleMinTeamSize}
+                            onChange={(e) => setFemaleMinTeamSize(Number(e.target.value))}
+                            className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-pink-500 rounded-xl text-xs text-white font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] text-gray-400 font-mono">Max Team Size</label>
+                          <input
+                            type="number"
+                            min="2"
+                            max="30"
+                            value={femaleMaxTeamSize}
+                            onChange={(e) => setFemaleMaxTeamSize(Number(e.target.value))}
+                            className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-pink-500 rounded-xl text-xs text-white font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-pink-400 font-mono font-bold">Female Registration Fee (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 1500"
+                        value={femaleRegistrationFee}
+                        onChange={(e) => setFemaleRegistrationFee(e.target.value === "" ? "" : Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-pink-500 rounded-xl text-xs text-white placeholder-gray-600 font-mono"
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-white/[0.05] space-y-2">
+                      <label className="flex items-center gap-2 text-[11px] font-bold font-mono text-amber-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={femalePrizePoolEnabled}
+                          onChange={(e) => setFemalePrizePoolEnabled(e.target.checked)}
+                          className="w-3.5 h-3.5 accent-amber-500 rounded cursor-pointer"
+                        />
+                        <span>Female Prize Pool / Winning Upto</span>
+                      </label>
+                      {femalePrizePoolEnabled && (
+                        <input
+                          type="text"
+                          placeholder="e.g. Upto ₹5,000"
+                          value={femalePrizePoolAmount}
+                          onChange={(e) => setFemalePrizePoolAmount(e.target.value)}
+                          className="w-full px-3 py-2 bg-[#0d0f12] border border-gray-800 focus:border-amber-500 rounded-xl text-xs text-white placeholder-gray-600 font-mono"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
 
             {/* Rules Text Box */}

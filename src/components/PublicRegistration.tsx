@@ -149,9 +149,51 @@ export default function PublicRegistration({
     dbService.getPaymentConfig().then(cfg => setPaymentConfig(cfg));
   }, []);
 
+  const getActiveMinTeamSize = () => {
+    if (!selectedEvent) return 1;
+    if (selectedEvent.hasGenderRules) {
+      if (gender === "male" && selectedEvent.maleRules?.minTeamSize !== undefined) {
+        return selectedEvent.maleRules.minTeamSize;
+      }
+      if (gender === "female" && selectedEvent.femaleRules?.minTeamSize !== undefined) {
+        return selectedEvent.femaleRules.minTeamSize;
+      }
+    }
+    return selectedEvent.minTeamSize;
+  };
+
+  const getActiveMaxTeamSize = () => {
+    if (!selectedEvent) return 1;
+    if (selectedEvent.hasGenderRules) {
+      if (gender === "male" && selectedEvent.maleRules?.maxTeamSize !== undefined) {
+        return selectedEvent.maleRules.maxTeamSize;
+      }
+      if (gender === "female" && selectedEvent.femaleRules?.maxTeamSize !== undefined) {
+        return selectedEvent.femaleRules.maxTeamSize;
+      }
+    }
+    return selectedEvent.maxTeamSize;
+  };
+
+  const getActiveRegistrationFee = () => {
+    if (!selectedEvent) return 0;
+    if (selectedEvent.hasGenderRules) {
+      if (gender === "male" && selectedEvent.maleRules?.registrationFee !== undefined) {
+        return selectedEvent.maleRules.registrationFee;
+      }
+      if (gender === "female" && selectedEvent.femaleRules?.registrationFee !== undefined) {
+        return selectedEvent.femaleRules.registrationFee;
+      }
+    }
+    return selectedEvent.registrationFee !== undefined ? selectedEvent.registrationFee : 0;
+  };
+
   const initializeMembersForEvent = (event: SportEvent) => {
     if (event.type === "team") {
-      const countToInitialize = Math.max(0, event.minTeamSize - 1);
+      const minSize = event.hasGenderRules 
+        ? (gender === "male" ? (event.maleRules?.minTeamSize ?? event.minTeamSize) : (event.femaleRules?.minTeamSize ?? event.minTeamSize))
+        : event.minTeamSize;
+      const countToInitialize = Math.max(0, minSize - 1);
       const initial: TeamMember[] = Array.from({ length: countToInitialize }, () => ({
         name: "",
         email: "",
@@ -165,6 +207,30 @@ export default function PublicRegistration({
     }
   };
 
+  // Adjust roster bounds whenever gender or selected event changes
+  useEffect(() => {
+    if (selectedEvent && selectedEvent.type === "team") {
+      const minReq = Math.max(0, getActiveMinTeamSize() - 1);
+      const maxReq = Math.max(0, getActiveMaxTeamSize() - 1);
+      setMembers(prev => {
+        if (prev.length < minReq) {
+          const needed = minReq - prev.length;
+          const added: TeamMember[] = Array.from({ length: needed }, () => ({
+            name: "",
+            email: "",
+            phone: "",
+            rollNo: "",
+            college: leadCollege || "IMS Engineering College"
+          }));
+          return [...prev, ...added];
+        } else if (prev.length > maxReq) {
+          return prev.slice(0, maxReq);
+        }
+        return prev;
+      });
+    }
+  }, [gender, selectedEvent]);
+
   const handleEventChange = (eventId: string) => {
     const ev = events.find(e => e.id === eventId);
     if (ev) {
@@ -176,9 +242,10 @@ export default function PublicRegistration({
 
   const addMember = () => {
     if (!selectedEvent) return;
-    const maxCapacity = selectedEvent.maxTeamSize - 1; // minus lead
+    const activeMax = getActiveMaxTeamSize();
+    const maxCapacity = activeMax - 1; // minus lead
     if (members.length >= maxCapacity) {
-      setErrorMsg(`Cannot add more players. Maximum roster limit for ${selectedEvent.title} is ${selectedEvent.maxTeamSize}.`);
+      setErrorMsg(`Cannot add more players. Maximum roster limit for ${selectedEvent.title} (${gender.toUpperCase()}) is ${activeMax}.`);
       return;
     }
     setMembers([
@@ -190,9 +257,10 @@ export default function PublicRegistration({
 
   const removeMember = (index: number) => {
     if (!selectedEvent) return;
-    const minRequired = selectedEvent.minTeamSize - 1; // minus lead
+    const activeMin = getActiveMinTeamSize();
+    const minRequired = activeMin - 1; // minus lead
     if (members.length <= minRequired) {
-      setErrorMsg(`Roster requires at least ${selectedEvent.minTeamSize} players (including Team Captain) for ${selectedEvent.title}.`);
+      setErrorMsg(`Roster requires at least ${activeMin} players (including Team Captain) for ${selectedEvent.title} (${gender.toUpperCase()}).`);
       return;
     }
     const copy = [...members];
@@ -226,8 +294,9 @@ export default function PublicRegistration({
     if (step === 3) {
       if (selectedEvent?.type === "team") {
         const totalRoster = members.length + 1;
-        if (totalRoster < selectedEvent.minTeamSize) {
-          setErrorMsg(`Roster size must be at least ${selectedEvent.minTeamSize} athletes. Currently it is ${totalRoster}.`);
+        const activeMin = getActiveMinTeamSize();
+        if (totalRoster < activeMin) {
+          setErrorMsg(`Roster size must be at least ${activeMin} athletes for ${gender.toUpperCase()} category. Currently it is ${totalRoster}.`);
           return false;
         }
         for (let i = 0; i < members.length; i++) {
@@ -565,11 +634,12 @@ export default function PublicRegistration({
               
               const qrImage = currentQR?.imageUrl || paymentConfig.qrImageUrl;
               const upiIdVal = currentQR?.upiId || paymentConfig.upiId;
-              const baseFee = selectedEvent?.registrationFee !== undefined
-                ? selectedEvent.registrationFee
+              const activeEventFee = getActiveRegistrationFee();
+              const baseFee = activeEventFee > 0
+                ? activeEventFee
                 : (currentQR?.amountOverride !== undefined ? currentQR.amountOverride : paymentConfig.registrationFee);
-              const amount = selectedEvent?.registrationFee !== undefined
-                ? selectedEvent.registrationFee
+              const amount = activeEventFee > 0
+                ? activeEventFee
                 : (selectedEvent?.type === 'team' ? (baseFee * (members.length + 1)) : baseFee);
               const noteText = currentQR?.note || null;
 

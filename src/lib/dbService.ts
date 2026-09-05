@@ -3512,7 +3512,14 @@ export const dbService = {
 
     verifiedRegs.forEach((r) => {
       const ev = eventsMap.get(r.eventId);
-      const fee = ev?.registrationFee !== undefined ? ev.registrationFee : globalFee;
+      let fee = ev?.registrationFee !== undefined ? ev.registrationFee : globalFee;
+      if (ev?.hasGenderRules) {
+        if (r.gender === "male" && ev.maleRules?.registrationFee !== undefined) {
+          fee = ev.maleRules.registrationFee;
+        } else if (r.gender === "female" && ev.femaleRules?.registrationFee !== undefined) {
+          fee = ev.femaleRules.registrationFee;
+        }
+      }
       totalCollectedEstimate += fee;
       if (r.sportType === "individual") {
         individualRevenue += fee;

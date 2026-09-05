@@ -153,10 +153,17 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     // Filter team members where name is filled (for flexible optional roster sizes within bounds)
     const activeMembers = members.filter(m => m.name.trim() !== "");
 
+    const minSize = event.hasGenderRules
+      ? (gender === "male" ? (event.maleRules?.minTeamSize ?? event.minTeamSize) : (event.femaleRules?.minTeamSize ?? event.minTeamSize))
+      : event.minTeamSize;
+    const maxSize = event.hasGenderRules
+      ? (gender === "male" ? (event.maleRules?.maxTeamSize ?? event.maxTeamSize) : (event.femaleRules?.maxTeamSize ?? event.maxTeamSize))
+      : event.maxTeamSize;
+
     // Validate size
     const totalTeamSize = activeMembers.length + 1; // plus leader
-    if (event.type === "team" && (totalTeamSize < event.minTeamSize || totalTeamSize > event.maxTeamSize)) {
-      alert(`Invalid team size! For ${event.title}, total size must be between ${event.minTeamSize} and ${event.maxTeamSize} members.`);
+    if (event.type === "team" && (totalTeamSize < minSize || totalTeamSize > maxSize)) {
+      alert(`Invalid team size! For ${event.title} (${gender.toUpperCase()}), total size must be between ${minSize} and ${maxSize} members.`);
       return;
     }
 

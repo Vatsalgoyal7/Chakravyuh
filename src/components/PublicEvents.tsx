@@ -211,6 +211,55 @@ export default function PublicEvents({ onRegisterSelect }: PublicEventsProps) {
                         </div>
                       </div>
 
+                      {/* Prize Pool Badge (Global) */}
+                      {ev.prizePoolEnabled && ev.prizePoolAmount && !ev.hasGenderRules && (
+                        <div className="mb-4 p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-[10px] font-bold flex items-center justify-between">
+                          <span className="flex items-center gap-1.5">
+                            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                            <span>WINNING PRIZE POOL</span>
+                          </span>
+                          <span className="text-white uppercase">{ev.prizePoolAmount}</span>
+                        </div>
+                      )}
+
+                      {/* Gender-specific Breakdown Card */}
+                      {ev.hasGenderRules && (
+                        <div className="mb-4 p-3 rounded-2xl bg-[#090b0e] border border-orange-500/20 space-y-2 font-mono text-[10px]">
+                          <div className="flex items-center justify-between text-orange-400 font-bold border-b border-white/[0.06] pb-1">
+                            <span>GENDER CATEGORIES & FEES</span>
+                            {((ev.maleRules?.prizePoolEnabled && ev.maleRules.prizePoolAmount) || (ev.femaleRules?.prizePoolEnabled && ev.femaleRules.prizePoolAmount)) && (
+                              <span className="text-[9px] text-amber-400 flex items-center gap-1">
+                                <Trophy className="w-3 h-3" /> Prize Pool
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Male Row */}
+                          <div className="flex items-center justify-between text-gray-300">
+                            <span className="font-bold text-sky-400">♂️ Male:</span>
+                            <span>
+                              Fee: {ev.maleRules?.registrationFee !== undefined ? `₹${ev.maleRules.registrationFee}` : (ev.registrationFee !== undefined ? `₹${ev.registrationFee}` : 'Free')}
+                              {ev.type === 'team' && ev.maleRules?.minTeamSize ? ` • ${ev.maleRules.minTeamSize}-${ev.maleRules.maxTeamSize} p` : ''}
+                            </span>
+                            {ev.maleRules?.prizePoolEnabled && ev.maleRules.prizePoolAmount && (
+                              <span className="text-amber-300 font-bold ml-1">{ev.maleRules.prizePoolAmount}</span>
+                            )}
+                          </div>
+
+                          {/* Female Row */}
+                          <div className="flex items-center justify-between text-gray-300 border-t border-white/[0.04] pt-1">
+                            <span className="font-bold text-pink-400">♀️ Female:</span>
+                            <span>
+                              Fee: {ev.femaleRules?.registrationFee !== undefined ? `₹${ev.femaleRules.registrationFee}` : (ev.registrationFee !== undefined ? `₹${ev.registrationFee}` : 'Free')}
+                              {ev.type === 'team' && ev.femaleRules?.minTeamSize ? ` • ${ev.femaleRules.minTeamSize}-${ev.femaleRules.maxTeamSize} p` : ''}
+                            </span>
+                            {ev.femaleRules?.prizePoolEnabled && ev.femaleRules.prizePoolAmount && (
+                              <span className="text-amber-300 font-bold ml-1">{ev.femaleRules.prizePoolAmount}</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Spots Progress Bar */}
                       <div className="font-mono text-[10px] mb-4 bg-gray-950/60 p-3.5 rounded-2xl border border-white/[0.04]">
                         <div className="flex justify-between text-gray-400 mb-1.5">

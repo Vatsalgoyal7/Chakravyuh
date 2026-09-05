@@ -270,72 +270,39 @@ export interface SportCoordinator {
 
 
 
+export interface GenderRuleConfig {
+  minTeamSize?: number;
+  maxTeamSize?: number;
+  registrationFee?: number;
+  prizePoolEnabled?: boolean;
+  prizePoolAmount?: string;
+}
+
 export interface SportEvent {
-
-
-
   id: string;
-
-
-
   title: string;
-
-
-
   category: string; // e.g., 'Outdoor', 'Indoor', 'Athletics'
-
-
-
   type: 'individual' | 'team';
-
-
-
   minTeamSize: number;
-
-
-
   maxTeamSize: number;
-
-
-
   rules: string;
-
-
-
   venue: string;
-
-
-
   coordinators: SportCoordinator[];
-
-
-
   image: string;
-
-
-
   registrationDeadline: string;
-
-
-
   registrationCount?: number;
-
-
-
   maxRegistrations: number;
-
-
-
   isActive: boolean;
-
-
-
   createdAt: string;
-
-
-
   updatedAt: string;
   registrationFee?: number;
+
+  // Optional gender-specific configurations and prize pool options
+  hasGenderRules?: boolean;
+  maleRules?: GenderRuleConfig;
+  femaleRules?: GenderRuleConfig;
+  prizePoolEnabled?: boolean;
+  prizePoolAmount?: string;
 }
 
 
