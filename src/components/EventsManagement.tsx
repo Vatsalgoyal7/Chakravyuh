@@ -836,7 +836,13 @@ export default function EventsManagement() {
                 <div className="grid grid-cols-3 gap-2 bg-[#0d0f12] p-3 rounded-xl border border-gray-800/40 text-[11px] font-mono text-gray-400">
                   <div>
                     <span className="block text-[9px] text-gray-600 font-bold uppercase">CONSTRAINTS</span>
-                    <span className="text-gray-300">{event.minTeamSize}-{event.maxTeamSize} athletes</span>
+                    <span className="text-gray-300">
+                      {event.hasGenderRules ? (
+                        <span className="text-[10px]">M: {event.maleRules?.minTeamSize}-{event.maleRules?.maxTeamSize} | F: {event.femaleRules?.minTeamSize}-{event.femaleRules?.maxTeamSize}</span>
+                      ) : (
+                        <>{event.minTeamSize}-{event.maxTeamSize} athletes</>
+                      )}
+                    </span>
                   </div>
                   <div>
                     <span className="block text-[9px] text-gray-600 font-bold uppercase">FILLED SPOTS</span>
@@ -844,7 +850,13 @@ export default function EventsManagement() {
                   </div>
                   <div>
                     <span className="block text-[9px] text-gray-600 font-bold uppercase">ENTRY FEE</span>
-                    <span className="text-emerald-400 font-bold">{event.registrationFee !== undefined ? `₹${event.registrationFee}` : "Default ₹200"}</span>
+                    <span className="text-emerald-400 font-bold">
+                      {event.hasGenderRules ? (
+                        <span className="text-[10px]">M: ₹{event.maleRules?.registrationFee ?? 200} | F: ₹{event.femaleRules?.registrationFee ?? 200}</span>
+                      ) : (
+                        <>{event.registrationFee !== undefined && event.registrationFee !== null ? `₹${event.registrationFee}` : "Default ₹200"}</>
+                      )}
+                    </span>
                   </div>
                 </div>
 

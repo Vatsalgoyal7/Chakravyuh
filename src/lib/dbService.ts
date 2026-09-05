@@ -1331,53 +1331,33 @@ export const dbService = {
 
 
     // Clean keys of event payload
-
     const cleanedEvent: any = {};
-
     for (const key of Object.keys(event)) {
-
-      cleanedEvent[key.trim()] = (event as any)[key];
-
+      if ((event as any)[key] !== undefined) {
+        cleanedEvent[key.trim()] = (event as any)[key];
+      }
     }
 
-
-
     const fullEvent: SportEvent = {
-
       ...cleanedEvent,
-
       id,
-
       registrationCount: event.registrationCount || 0,
-
       createdAt: event.createdAt || timestamp,
-
       updatedAt: timestamp,
-
     };
 
-
+    const sanitizedPayload = JSON.parse(JSON.stringify(fullEvent));
 
     if (isFirebaseConfigured && db) {
-
       try {
-
-        await setDoc(doc(db, "events", id), fullEvent);
-
+        await setDoc(doc(db, "events", id), sanitizedPayload);
         return fullEvent;
-
       } catch (err) {
-
         console.error(
-
           "Firestore saveEvent failed, writing to local storage:",
-
           err
-
         );
-
       }
-
     }
 
 
