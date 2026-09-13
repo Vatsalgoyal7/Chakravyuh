@@ -316,7 +316,7 @@ export default function PublicHome({ onExploreEvents, onRegisterNow, onTrackStat
                 <div className="mt-6 p-4 bg-[#08090c]/80 rounded-2xl border border-white/[0.04] flex items-start gap-3">
                   <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <span className="text-[10px] text-gray-400 leading-relaxed font-sans">
-                    Roster submissions are audited in real-time. Outstation teams must submit valid NOC certifications. Registration deadline: <strong className="text-white">October 03, 2026</strong>.
+                    Roster submissions are audited in real-time. Outstation teams must submit valid NOC certifications. Registration deadline: <strong className="text-white">September 28, 2026</strong>.
                   </span>
                 </div>
               </motion.div>

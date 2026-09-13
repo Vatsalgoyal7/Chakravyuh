@@ -131,7 +131,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image:  "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -181,7 +181,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -231,7 +231,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -281,7 +281,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -331,7 +331,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -381,7 +381,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -431,7 +431,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1534158914592-062992fbe900?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -481,7 +481,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -531,7 +531,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -581,7 +581,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1528819622765-d6bcf132f793?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -631,7 +631,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -681,7 +681,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -733,7 +733,7 @@ export const DEFAULT_EVENTS: SportEvent[] = [
 
     image: "https://images.unsplash.com/photo-1517649763962-0c623066013b?w=1200",
 
-    registrationDeadline: "2026-10-05T23:59:59Z",
+    registrationDeadline: "2026-09-28T23:59:59Z",
 
     registrationCount: 0,
 
@@ -849,7 +849,7 @@ const DEFAULT_ANNOUNCEMENTS: Announcement[] = [
 
     title: "Registrations Open!",
 
-    message: "Registrations for Chakravyuh 2K26 are now live. Register your team before the October 15th deadline.",
+    message: "Registrations for Chakravyuh 2K26 are now live. Register your team before the September 28th deadline.",
 
     type: "urgent",
 

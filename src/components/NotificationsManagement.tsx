@@ -226,7 +226,7 @@ export default function NotificationsManagement() {
             <textarea
               rows={2}
               className="w-full px-3.5 py-2 bg-[#0d0f12] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white leading-normal"
-              placeholder="e.g., Rewards And Prizes : Prizes Worth (for first line)&#10;Registrations Deadline: October 03, 2026 (for second line)&#10;Write each message on a new line."
+              placeholder="e.g., Rewards And Prizes : Prizes Worth (for first line)&#10;Registrations Deadline: September 28, 2026 (for second line)&#10;Write each message on a new line."
               value={bannerText}
               onChange={(e) => setBannerText(e.target.value)}
             />

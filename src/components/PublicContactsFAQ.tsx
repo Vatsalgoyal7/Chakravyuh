@@ -47,7 +47,7 @@ export default function PublicContactsFAQ() {
     },
     {
       q: "Are spot registrations or roster changes allowed at the venue?",
-      a: "Absolutely not. All rosters must be locked before the October 15th deadline. No spot registrations, substitutions, or field additions will be permitted once brackets are generated.",
+      a: "Absolutely not. All rosters must be locked before the September 28th deadline. No spot registrations, substitutions, or field additions will be permitted once brackets are generated.",
     }
   ];
 
