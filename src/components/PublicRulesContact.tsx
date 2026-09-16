@@ -325,7 +325,7 @@ export default function PublicRulesContact() {
 
                       <h4 className={`text-xs font-bold uppercase tracking-wider font-mono mb-3 ${isWhiteBg ? 'text-gray-700' : 'text-gray-400'}`}>
 
-                        ⭐ Main Coordinators
+                        ⭐ Head Coordinators
 
                       </h4>
 

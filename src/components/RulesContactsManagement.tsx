@@ -492,7 +492,7 @@ export default function RulesContactsManagement() {
                         onChange={(e) => setContactIsMainCoordinator(e.target.checked)}
                         className="w-4 h-4 rounded border-gray-700 bg-[#0d0f12] text-orange-500 focus:ring-orange-500 focus:ring-offset-0"
                       />
-                      <span className="text-xs text-gray-300 font-semibold">Main Coordinator (Pinned at Top)</span>
+                      <span className="text-xs text-gray-300 font-semibold">Head Coordinator (Pinned at Top)</span>
                     </label>
 
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -557,7 +557,7 @@ export default function RulesContactsManagement() {
                       <span className="text-gray-400">{contact.category || "Not set"}</span>
                     </p>
                     <p className="flex items-center gap-1.5">
-                      <span className="text-orange-400">Main:</span>
+                      <span className="text-orange-400">Head:</span>
                       <span className="text-gray-400">{contact.isMainCoordinator ? "Yes" : "No"}</span>
                     </p>
                     <p className="flex items-center gap-1.5">
