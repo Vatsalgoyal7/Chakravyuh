@@ -374,7 +374,7 @@ export default function EventsManagement() {
                   <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Min Team Size (including captain)</label>
                   <input
                     type="number"
-                    min="2"
+                    min="1"
                     max="30"
                     className="w-full px-4 py-2 bg-[#12141a] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white outline-none transition-all font-mono"
                     value={minTeamSize}
@@ -385,7 +385,7 @@ export default function EventsManagement() {
                   <label className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold font-mono">Max Team Size (with substitutions)</label>
                   <input
                     type="number"
-                    min="2"
+                    min="1"
                     max="30"
                     className="w-full px-4 py-2 bg-[#12141a] border border-gray-800 focus:border-orange-500 rounded-xl text-xs text-white outline-none transition-all font-mono"
                     value={maxTeamSize}
@@ -521,7 +521,7 @@ export default function EventsManagement() {
                           <label className="block text-[10px] text-gray-400 font-mono">Min Team Size</label>
                           <input
                             type="number"
-                            min="2"
+                            min="1"
                             max="30"
                             value={maleMinTeamSize}
                             onChange={(e) => setMaleMinTeamSize(Number(e.target.value))}
@@ -532,7 +532,7 @@ export default function EventsManagement() {
                           <label className="block text-[10px] text-gray-400 font-mono">Max Team Size</label>
                           <input
                             type="number"
-                            min="2"
+                            min="1"
                             max="30"
                             value={maleMaxTeamSize}
                             onChange={(e) => setMaleMaxTeamSize(Number(e.target.value))}
@@ -588,7 +588,7 @@ export default function EventsManagement() {
                           <label className="block text-[10px] text-gray-400 font-mono">Min Team Size</label>
                           <input
                             type="number"
-                            min="2"
+                            min="1"
                             max="30"
                             value={femaleMinTeamSize}
                             onChange={(e) => setFemaleMinTeamSize(Number(e.target.value))}
@@ -599,7 +599,7 @@ export default function EventsManagement() {
                           <label className="block text-[10px] text-gray-400 font-mono">Max Team Size</label>
                           <input
                             type="number"
-                            min="2"
+                            min="1"
                             max="30"
                             value={femaleMaxTeamSize}
                             onChange={(e) => setFemaleMaxTeamSize(Number(e.target.value))}
