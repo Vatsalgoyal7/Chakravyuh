@@ -1440,6 +1440,20 @@ export const dbService = {
 
   },
 
+  async syncEventRegistrationCounts(counts: { id: string; registrationCount: number }[]): Promise<void> {
+    if (isFirebaseConfigured && db) {
+      try {
+        const batch = writeBatch(db);
+        counts.forEach(c => {
+          batch.update(doc(db, "events", c.id), { registrationCount: c.registrationCount });
+        });
+        await batch.commit();
+      } catch (err) {
+        console.warn("syncEventRegistrationCounts failed:", err);
+      }
+    }
+  },
+
 
 
   // 2. REGISTRATIONS

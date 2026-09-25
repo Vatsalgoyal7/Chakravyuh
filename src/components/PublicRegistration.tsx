@@ -80,23 +80,6 @@ export default function PublicRegistration({
   // Team members state
   const [members, setMembers] = useState<TeamMember[]>([]);
   
-  // Sync team members default college dynamically with captain's leadCollege
-  const prevLeadCollegeRef = React.useRef(leadCollege);
-
-  useEffect(() => {
-    const prev = prevLeadCollegeRef.current;
-    const current = leadCollege;
-    if (current !== prev) {
-      setMembers(prevMembers => prevMembers.map(m => {
-        if (!m.college || m.college === "" || m.college === "IMS Engineering College" || m.college === prev) {
-          return { ...m, college: current };
-        }
-        return m;
-      }));
-      prevLeadCollegeRef.current = current;
-    }
-  }, [leadCollege]);
-  
   // Submit status
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -199,7 +182,7 @@ export default function PublicRegistration({
         email: "",
         phone: "",
         rollNo: "",
-        college: leadCollege || "IMS Engineering College"
+        college: isImsecStudent ? "IMS Engineering College" : ""
       }));
       setMembers(initial);
     } else {
@@ -220,7 +203,7 @@ export default function PublicRegistration({
             email: "",
             phone: "",
             rollNo: "",
-            college: leadCollege || "IMS Engineering College"
+            college: isImsecStudent ? "IMS Engineering College" : ""
           }));
           return [...prev, ...added];
         } else if (prev.length > maxReq) {
@@ -250,7 +233,7 @@ export default function PublicRegistration({
     }
     setMembers([
       ...members,
-      { name: "", email: "", phone: "", rollNo: "", college: leadCollege || "IMS Engineering College" }
+      { name: "", email: "", phone: "", rollNo: "", college: isImsecStudent ? "IMS Engineering College" : "" }
     ]);
     setErrorMsg("");
   };

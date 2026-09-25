@@ -168,7 +168,7 @@ export function generateEventPassPDF(registration: Registration, event?: SportEv
       body: memberRows,
       theme: "striped",
       headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      styles: { fontSize: 7.5, cellPadding: 2 },
+      styles: { fontSize: 7.5, cellPadding: registration.members.length > 7 ? 1.5 : 2 },
       columnStyles: {
         0: { cellWidth: 10, halign: "center" },
         1: { cellWidth: 50 },
@@ -178,7 +178,7 @@ export function generateEventPassPDF(registration: Registration, event?: SportEv
       }
     });
 
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 5;
   }
 
   // Section 3: Transaction & Payment Proof
@@ -199,10 +199,10 @@ export function generateEventPassPDF(registration: Registration, event?: SportEv
 
   autoTable(doc, {
     startY: y,
-    margin: { left: margin, right: margin },
+    margin: { left: margin, right: margin, bottom: 22 },
     body: paymentData as any,
     theme: "grid",
-    styles: { fontSize: 8, cellPadding: 2.5, textColor: [30, 41, 59] },
+    styles: { fontSize: 8, cellPadding: 2, textColor: [30, 41, 59] },
     columnStyles: {
       0: { cellWidth: 45 },
       1: { cellWidth: 45 },
@@ -211,42 +211,51 @@ export function generateEventPassPDF(registration: Registration, event?: SportEv
     }
   });
 
-  y = (doc as any).lastAutoTable.finalY + 8;
+  y = (doc as any).lastAutoTable.finalY + 5;
 
   // Section 4: Ground Regulations & Mandate Box
+  const rulesBoxHeight = 22;
+  if (y + rulesBoxHeight > pageHeight - 22) {
+    doc.addPage();
+    y = 20;
+  }
+
   doc.setFillColor(254, 243, 199); // #fef3c7 (light yellow alert)
   doc.setDrawColor(245, 158, 11);
-  doc.roundedRect(margin, y, contentWidth, 26, 2, 2, "FD");
+  doc.roundedRect(margin, y, contentWidth, rulesBoxHeight, 2, 2, "FD");
 
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(180, 83, 9); // #b45309
-  doc.text("IMPORTANT GROUND REPORTING & CONDUCT RULES:", margin + 5, y + 6);
+  doc.text("IMPORTANT GROUND REPORTING & CONDUCT RULES:", margin + 5, y + 5);
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(51, 65, 85);
-  doc.text("• Physical College ID Card is MANDATORY for all athletes at verification counters.", margin + 5, y + 11);
-  doc.text("• Teams/Athletes must report at the designated arena 30 minutes prior to scheduled fixture time.", margin + 5, y + 16);
-  doc.text("• Unsportsmanlike conduct or fake credentials will lead to immediate disqualification & disciplinary action.", margin + 5, y + 21);
+  doc.text("• Physical College ID Card is MANDATORY for all athletes at verification counters.", margin + 5, y + 9.5);
+  doc.text("• Teams/Athletes must report at the designated arena 30 minutes prior to scheduled fixture time.", margin + 5, y + 14);
+  doc.text("• Unsportsmanlike conduct or fake credentials will lead to immediate disqualification & disciplinary action.", margin + 5, y + 18.5);
 
-  y += 31;
+  // Footer & Official Seal Line on all pages
+  const totalPages = (doc as any).internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(203, 213, 225);
+    doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
 
-  // Footer & Official Seal Line
-  doc.setDrawColor(203, 213, 225);
-  doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(100, 116, 139);
+    doc.text("CHAKRAVYUH 2K26 CENTRAL SPORTS COMMITTEE", margin, pageHeight - 14);
 
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(100, 116, 139);
-  doc.text("CHAKRAVYUH 2K26 CENTRAL SPORTS COMMITTEE", margin, pageHeight - 14);
+    doc.setFont("helvetica", "normal");
+    doc.text("IMS Engineering College, NH-24, Adhyatmik Nagar, Ghaziabad", margin, pageHeight - 10);
 
-  doc.setFont("helvetica", "normal");
-  doc.text("IMS Engineering College, NH-24, Adhyatmik Nagar, Ghaziabad", margin, pageHeight - 10);
-
-  doc.setFont("courier", "bold");
-  doc.setTextColor(217, 119, 6);
-  doc.text("OFFICIAL DIGITAL PASS - SINGLE PAGE VALIDATED", pageWidth - margin, pageHeight - 12, { align: "right" });
+    doc.setFont("courier", "bold");
+    doc.setTextColor(217, 119, 6);
+    const pageLabel = totalPages > 1 ? `PAGE ${p} OF ${totalPages}` : "SINGLE PAGE VALIDATED";
+    doc.text(`OFFICIAL DIGITAL PASS - ${pageLabel}`, pageWidth - margin, pageHeight - 12, { align: "right" });
+  }
 
   return doc;
 }

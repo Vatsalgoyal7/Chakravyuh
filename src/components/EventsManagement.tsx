@@ -85,8 +85,30 @@ export default function EventsManagement() {
   async function loadEvents() {
     setIsLoading(true);
     try {
-      const data = await dbService.getEvents();
-      setEvents(data);
+      const [data, regs] = await Promise.all([
+        dbService.getEvents(),
+        dbService.getRegistrations()
+      ]);
+      
+      const countsToSync: { id: string; registrationCount: number }[] = [];
+      const updatedEvents = data.map((ev) => {
+        const realCount = regs.filter((r) => r.eventId === ev.id).length;
+        if (ev.registrationCount !== realCount) {
+          countsToSync.push({ id: ev.id, registrationCount: realCount });
+        }
+        return {
+          ...ev,
+          registrationCount: realCount
+        };
+      });
+
+      setEvents(updatedEvents);
+
+      if (countsToSync.length > 0) {
+        dbService.syncEventRegistrationCounts(countsToSync).catch(err => {
+          console.warn("Background sync of event registration counts failed:", err);
+        });
+      }
     } catch (err) {
       console.error(err);
     } finally {
