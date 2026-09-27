@@ -334,7 +334,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     } else {
       const ev = events.find(e => e.id === r.eventId);
       // Table Tennis: subType decides fee (singles=500, doubles=1000)
-      if (r.eventId === "table_tennis_2026") {
+      if (r.eventTitle?.toLowerCase().includes("table tennis")) {
         const sub = (r as any).subType;
         if (sub === "singles") amount = 500;
         else if (sub === "doubles") amount = 1000;
@@ -1739,7 +1739,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                         )}
 
                         {/* Super Admin + Admin Only: Table Tennis Singles/Doubles selector */}
-                        {(user.role === "super_admin" || user.role === "admin") && reg.eventId === "table_tennis_2026" && (
+                        {(user.role === "super_admin" || user.role === "admin") && reg.eventTitle?.toLowerCase().includes("table tennis") && (
                           <select
                             value={(reg as any).subType || ""}
                             onChange={async (e) => {
