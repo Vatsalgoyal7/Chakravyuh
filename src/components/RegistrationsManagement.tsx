@@ -318,6 +318,64 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     }
   };
 
+  // Financial & Payment Helper for Money Records
+  const getRegistrationFinancialInfo = (r: Registration) => {
+    const verification = paymentVerifications.find(
+      v => v.registrationId === r.id ||
+      (v.transactionId && r.utrNumber && v.transactionId.trim() === r.utrNumber.trim()) ||
+      (v.payerMobile && r.leadPhone && v.payerMobile.trim() === r.leadPhone.trim())
+    );
+
+    let amount = 0;
+    if (r.paymentStatus === 'ims_student') {
+      amount = 0;
+    } else if (verification && verification.amount !== undefined && verification.amount !== null) {
+      amount = Number(verification.amount);
+    } else {
+      const ev = events.find(e => e.id === r.eventId);
+      if (ev?.hasGenderRules) {
+        if (r.gender === 'female' && ev.femaleRules?.registrationFee !== undefined) {
+          amount = ev.femaleRules.registrationFee;
+        } else if (r.gender === 'male' && ev.maleRules?.registrationFee !== undefined) {
+          amount = ev.maleRules.registrationFee;
+        } else {
+          amount = ev.registrationFee ?? 200;
+        }
+      } else {
+        amount = ev?.registrationFee ?? 200;
+      }
+    }
+
+    const utr = r.utrNumber || verification?.transactionId || (r.paymentStatus === 'ims_student' ? "IMSEC EXEMPT" : "N/A");
+    
+    const rawDate = verification?.submittedAt || r.paymentSubmittedAt || r.registeredAt;
+    const utrDateTime = rawDate ? new Date(rawDate).toLocaleString("en-IN") : "N/A";
+
+    const membersList = r.sportType === "team" && r.members && r.members.length > 0
+      ? r.members.map((m, idx) => `${idx + 1}. ${m.name || 'Member'}`).join(", ")
+      : "Solo / Individual";
+
+    let paymentStatusLabel = "UNPAID";
+    if (r.paymentStatus === "ims_student") {
+      paymentStatusLabel = "IMSEC FREE";
+    } else if (r.paymentStatus === "payment_verified" || verification?.status === "approved") {
+      paymentStatusLabel = "PAID / VERIFIED";
+    } else if (r.paymentStatus === "payment_submitted" || verification?.status === "pending") {
+      paymentStatusLabel = "PENDING REVIEW";
+    } else if (r.paymentStatus === "payment_rejected" || verification?.status === "rejected") {
+      paymentStatusLabel = "REJECTED";
+    }
+
+    return {
+      amount,
+      utr,
+      utrDateTime,
+      membersList,
+      paymentStatusLabel,
+      trackingCode: r.trackingCode || `CHK-${r.id.slice(-8).toUpperCase()}`
+    };
+  };
+
   // CSV/Excel Exporter logic (Client-side fast streaming download)
   const handleExport = (format: "csv" | "excel") => {
     if (registrations.length === 0) {
@@ -334,9 +392,8 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
     ];
 
     const getFeeString = (r: any) => {
-      if (r.paymentStatus === 'ims_student') return "0 (IMSEC Free)";
-      const ev = events.find(e => e.id === r.eventId);
-      return ev?.registrationFee !== undefined ? `${ev.registrationFee}` : "200";
+      const info = getRegistrationFinancialInfo(r);
+      return info.amount > 0 ? `${info.amount}` : "0 (IMSEC Free)";
     };
 
     // Separate registrations by gender
@@ -440,22 +497,27 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
   };
 
   // Payment Statement Export (Separate Excel for payment details)
+  // Money & Payment Record Export (Clean 10-column financial ledger)
   const handlePaymentExport = (format: "csv" | "excel") => {
     const targetSource = filteredRegistrations.length > 0 ? filteredRegistrations : registrations;
-    const paymentRegistrations = targetSource.filter(r =>
-      r.paymentStatus && r.paymentStatus !== 'pending_payment'
-    );
 
-    if (paymentRegistrations.length === 0) {
-      alert("No payment records available to export.");
+    if (targetSource.length === 0) {
+      alert("No registration records available to export.");
       return;
     }
 
-    // Payment statement headers
+    // Money Record statement headers (10 clean columns)
     const paymentHeaders = [
-      "Transaction ID", "Payer Name", "Payer Mobile", "Event Title", "Sport Type",
-      "Team Name", "Captain Name", "Captain College", "Captain RollNo",
-      "Amount Paid", "Payment Status", "UTR Number", "Payment Submitted At", "Payment Verified At"
+      "Tracking ID",
+      "Team / Athlete Name",
+      "Sport",
+      "College",
+      "Captain Name & Mobile",
+      "Team Members",
+      "UTR / TXN ID",
+      "UTR Date & Time",
+      "Amount (₹)",
+      "Payment Status"
     ];
 
     const generatePaymentContent = (data: any[]) => {
@@ -464,45 +526,45 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       if (format === "csv") {
         fileContent += paymentHeaders.join(",") + "\n";
         data.forEach(r => {
+          const info = getRegistrationFinancialInfo(r);
+          const teamOrAthlete = r.teamName ? r.teamName : r.leadName;
+          const captainContact = `${r.leadName} (${r.leadPhone || 'N/A'})`;
+
           const row = [
-            r.id,
-            `"${r.leadName.replace(/"/g, '""')}"`,
-            r.leadPhone,
+            `"${info.trackingCode}"`,
+            `"${teamOrAthlete.replace(/"/g, '""')}"`,
             `"${r.eventTitle.replace(/"/g, '""')}"`,
-            r.sportType,
-            r.teamName ? `"${r.teamName.replace(/"/g, '""')}"` : "",
-            `"${r.leadName.replace(/"/g, '""')}"`,
             `"${r.leadCollege.replace(/"/g, '""')}"`,
-            r.leadRollNo,
-            r.sportType === "individual" ? "Individual Fee" : `Team Fee (${(r.members ? r.members.length : 0) + 1} players)`,
-            r.paymentStatus || "unknown",
-            r.utrNumber ? `"${r.utrNumber.replace(/"/g, '""')}"` : "N/A",
-            r.paymentSubmittedAt || "N/A",
-            r.paymentVerifiedAt || "N/A"
+            `"${captainContact.replace(/"/g, '""')}"`,
+            `"${info.membersList.replace(/"/g, '""')}"`,
+            `"${info.utr.replace(/"/g, '""')}"`,
+            `"${info.utrDateTime}"`,
+            info.amount,
+            `"${info.paymentStatusLabel}"`
           ];
           fileContent += row.join(",") + "\n";
         });
       } else {
         fileContent += "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:x='urn:schemas-microsoft-com:office:excel' xmlns='http://www.w3.org/TR/REC-html40'>";
-        fileContent += "<head><meta charset='utf-8'><style>table{border-collapse:collapse;}th,td{border:1px solid #000;padding:8px;}</style></head><body><table><thead><tr>";
+        fileContent += "<head><meta charset='utf-8'><style>table{border-collapse:collapse;font-family:sans-serif;}th{background:#1e293b;color:#fff;padding:8px 10px;border:1px solid #cbd5e1;font-size:12px;}td{border:1px solid #cbd5e1;padding:6px 8px;font-size:11px;}</style></head><body><table><thead><tr>";
         paymentHeaders.forEach(h => { fileContent += `<th>${h}</th>`; });
         fileContent += "</tr></thead><tbody>";
         data.forEach(r => {
+          const info = getRegistrationFinancialInfo(r);
+          const teamOrAthlete = r.teamName ? r.teamName : r.leadName;
+          const captainContact = `${r.leadName} (${r.leadPhone || 'N/A'})`;
+
           fileContent += "<tr>";
-          fileContent += `<td>${r.id}</td>`;
-          fileContent += `<td>${r.leadName}</td>`;
-          fileContent += `<td>${r.leadPhone}</td>`;
+          fileContent += `<td>${info.trackingCode}</td>`;
+          fileContent += `<td>${teamOrAthlete}</td>`;
           fileContent += `<td>${r.eventTitle}</td>`;
-          fileContent += `<td>${r.sportType}</td>`;
-          fileContent += `<td>${r.teamName || ""}</td>`;
-          fileContent += `<td>${r.leadName}</td>`;
           fileContent += `<td>${r.leadCollege}</td>`;
-          fileContent += `<td>${r.leadRollNo}</td>`;
-          fileContent += `<td>${r.sportType === "individual" ? "Individual Fee" : `Team Fee (${(r.members ? r.members.length : 0) + 1} players)`}</td>`;
-          fileContent += `<td>${r.paymentStatus || "unknown"}</td>`;
-          fileContent += `<td>${r.utrNumber || "N/A"}</td>`;
-          fileContent += `<td>${r.paymentSubmittedAt || "N/A"}</td>`;
-          fileContent += `<td>${r.paymentVerifiedAt || "N/A"}</td>`;
+          fileContent += `<td>${captainContact}</td>`;
+          fileContent += `<td>${info.membersList}</td>`;
+          fileContent += `<td>${info.utr}</td>`;
+          fileContent += `<td>${info.utrDateTime}</td>`;
+          fileContent += `<td style="font-weight:bold;text-align:right;">${info.amount}</td>`;
+          fileContent += `<td>${info.paymentStatusLabel}</td>`;
           fileContent += "</tr>";
         });
         fileContent += "</tbody></table></body></html>";
@@ -525,8 +587,8 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
 
     const timestamp = Date.now();
     const extension = format === "csv" ? "csv" : "xls";
-    const content = generatePaymentContent(paymentRegistrations);
-    downloadFile(content, `Chakravyuh_Payment_Statement_${timestamp}.${extension}`);
+    const content = generatePaymentContent(targetSource);
+    downloadFile(content, `Chakravyuh_Money_Record_${timestamp}.${extension}`);
   };
 
   // Live filter query processing
@@ -592,71 +654,71 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
         break;
 
       case "bank":
-        // Bank Statement - all payment attempts
-        const paymentRegs = dataToExport.filter(r =>
-          r.paymentStatus && r.paymentStatus !== 'pending_payment'
-        );
-        exportData = paymentRegs.map(r => {
-          const verification = paymentVerifications.find(v => v.registrationId === r.id);
+        // Money & Payment Record (All registrations with payment, captain & roster)
+        exportData = dataToExport.map(r => {
+          const info = getRegistrationFinancialInfo(r);
           return {
-            transactionId: verification?.transactionId || r.utrNumber || "N/A",
-            payerName: verification?.payerName || r.leadName,
-            payerMobile: verification?.payerMobile || r.leadPhone,
-            name: r.leadName,
-            rollNo: r.leadRollNo,
-            college: r.leadCollege,
-            mobile: r.leadPhone,
-            amount: verification?.amount || "N/A",
-            paymentStatus: r.paymentStatus,
-            utr: r.utrNumber || verification?.transactionId || "N/A",
-            submittedAt: verification?.submittedAt || "N/A",
-            verifiedAt: verification?.verifiedAt || "N/A"
+            trackingCode: info.trackingCode,
+            teamOrAthlete: r.teamName ? r.teamName : r.leadName,
+            eventTitle: r.eventTitle,
+            leadCollege: r.leadCollege,
+            captainContact: `${r.leadName} (${r.leadPhone || 'N/A'})`,
+            membersList: info.membersList,
+            utr: info.utr,
+            utrDateTime: info.utrDateTime,
+            amount: info.amount,
+            paymentStatus: info.paymentStatusLabel
           };
         });
-        filename = "chakravyuh_bank_statement";
+        filename = "chakravyuh_money_records";
         headers = [
-          "Transaction ID", "Payer Name", "Payer Mobile", "Student Name", "Roll No",
-          "College", "Student Mobile", "Amount Paid", "Payment Status", "UTR Number",
-          "Submitted At", "Verified At"
+          "Tracking ID", "Team / Athlete Name", "Sport", "College",
+          "Captain Name & Mobile", "Team Members", "UTR / TXN ID",
+          "UTR Date & Time", "Amount (₹)", "Payment Status"
         ];
         fieldMapping = {
-          "Transaction ID": "transactionId",
-          "Payer Name": "payerName",
-          "Payer Mobile": "payerMobile",
-          "Student Name": "name",
-          "Roll No": "rollNo",
-          "College": "college",
-          "Student Mobile": "mobile",
-          "Amount Paid": "amount",
-          "Payment Status": "paymentStatus",
-          "UTR Number": "utr",
-          "Submitted At": "submittedAt",
-          "Verified At": "verifiedAt"
+          "Tracking ID": "trackingCode",
+          "Team / Athlete Name": "teamOrAthlete",
+          "Sport": "eventTitle",
+          "College": "leadCollege",
+          "Captain Name & Mobile": "captainContact",
+          "Team Members": "membersList",
+          "UTR / TXN ID": "utr",
+          "UTR Date & Time": "utrDateTime",
+          "Amount (₹)": "amount",
+          "Payment Status": "paymentStatus"
         };
         break;
 
       case "payment_status":
         // All payment statuses mixed
-        exportData = dataToExport.map(r => ({
-          eventTitle: r.eventTitle,
-          sportType: r.sportType,
-          teamName: r.teamName || "Individual",
-          leadName: r.leadName,
-          leadCollege: r.leadCollege,
-          leadRollNo: r.leadRollNo,
-          leadPhone: r.leadPhone,
-          paymentStatus: r.paymentStatus || "pending_payment",
-          utrNumber: r.utrNumber || "N/A",
-          registrationStatus: r.status,
-          registeredAt: r.registeredAt
-        }));
+        exportData = dataToExport.map(r => {
+          const info = getRegistrationFinancialInfo(r);
+          return {
+            trackingCode: info.trackingCode,
+            eventTitle: r.eventTitle,
+            sportType: r.sportType,
+            teamName: r.teamName || "Individual",
+            leadName: r.leadName,
+            leadCollege: r.leadCollege,
+            leadRollNo: r.leadRollNo,
+            leadPhone: r.leadPhone,
+            paymentStatus: info.paymentStatusLabel,
+            utrNumber: info.utr,
+            utrDateTime: info.utrDateTime,
+            amount: info.amount,
+            registrationStatus: r.status,
+            registeredAt: r.registeredAt
+          };
+        });
         filename = "chakravyuh_payment_status_mix";
         headers = [
-          "Event Title", "Sport Type", "Team Name", "Lead Name", "Lead College",
-          "Lead RollNo", "Lead Mobile", "Payment Status", "UTR Number",
+          "Tracking ID", "Event Title", "Sport Type", "Team Name", "Lead Name", "Lead College",
+          "Lead RollNo", "Lead Mobile", "UTR Number", "UTR Date & Time", "Amount (₹)", "Payment Status",
           "Registration Status", "Registered At"
         ];
         fieldMapping = {
+          "Tracking ID": "trackingCode",
           "Event Title": "eventTitle",
           "Sport Type": "sportType",
           "Team Name": "teamName",
@@ -664,8 +726,10 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
           "Lead College": "leadCollege",
           "Lead RollNo": "leadRollNo",
           "Lead Mobile": "leadPhone",
-          "Payment Status": "paymentStatus",
           "UTR Number": "utrNumber",
+          "UTR Date & Time": "utrDateTime",
+          "Amount (₹)": "amount",
+          "Payment Status": "paymentStatus",
           "Registration Status": "registrationStatus",
           "Registered At": "registeredAt"
         };
@@ -674,28 +738,36 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       case "all":
       default:
         // All records
-        exportData = dataToExport.map(r => ({
-          eventTitle: r.eventTitle,
-          sportType: r.sportType,
-          teamName: r.teamName || "Individual",
-          leadName: r.leadName,
-          leadCollege: r.leadCollege,
-          leadRollNo: r.leadRollNo,
-          leadBranch: r.leadBranch,
-          leadYear: r.leadYear,
-          leadPhone: r.leadPhone,
-          leadEmail: r.leadEmail,
-          paymentStatus: r.paymentStatus || "pending_payment",
-          registrationStatus: r.status,
-          registeredAt: r.registeredAt
-        }));
+        exportData = dataToExport.map(r => {
+          const info = getRegistrationFinancialInfo(r);
+          return {
+            trackingCode: info.trackingCode,
+            eventTitle: r.eventTitle,
+            sportType: r.sportType,
+            teamName: r.teamName || "Individual",
+            leadName: r.leadName,
+            leadCollege: r.leadCollege,
+            leadRollNo: r.leadRollNo,
+            leadBranch: r.leadBranch,
+            leadYear: r.leadYear,
+            leadPhone: r.leadPhone,
+            leadEmail: r.leadEmail,
+            utrNumber: info.utr,
+            utrDateTime: info.utrDateTime,
+            amount: info.amount,
+            paymentStatus: info.paymentStatusLabel,
+            registrationStatus: r.status,
+            registeredAt: r.registeredAt
+          };
+        });
         filename = "chakravyuh_all_registrations";
         headers = [
-          "Event Title", "Sport Type", "Team Name", "Lead Name", "Lead College",
+          "Tracking ID", "Event Title", "Sport Type", "Team Name", "Lead Name", "Lead College",
           "Lead RollNo", "Lead Branch", "Lead Year", "Lead Mobile",
-          "Lead Email", "Payment Status", "Registration Status", "Registered At"
+          "Lead Email", "UTR Number", "UTR Date & Time", "Amount (₹)", "Payment Status", "Registration Status", "Registered At"
         ];
         fieldMapping = {
+          "Tracking ID": "trackingCode",
           "Event Title": "eventTitle",
           "Sport Type": "sportType",
           "Team Name": "teamName",
@@ -706,6 +778,9 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
           "Lead Year": "leadYear",
           "Lead Mobile": "leadPhone",
           "Lead Email": "leadEmail",
+          "UTR Number": "utrNumber",
+          "UTR Date & Time": "utrDateTime",
+          "Amount (₹)": "amount",
           "Payment Status": "paymentStatus",
           "Registration Status": "registrationStatus",
           "Registered At": "registeredAt"
@@ -1227,7 +1302,7 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
               >
                 <option value="all">All Records</option>
                 <option value="college">College-wise</option>
-                <option value="bank">Bank Statement</option>
+                <option value="bank">Money &amp; Payment Record</option>
                 <option value="payment_status">Payment Status Mix</option>
               </select>
               <select
