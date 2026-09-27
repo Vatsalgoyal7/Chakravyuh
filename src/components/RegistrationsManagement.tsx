@@ -333,7 +333,13 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
       amount = Number(verification.amount);
     } else {
       const ev = events.find(e => e.id === r.eventId);
-      if (ev?.hasGenderRules) {
+      // Table Tennis: subType decides fee (singles=500, doubles=1000)
+      if (r.eventId === "table_tennis_2026") {
+        const sub = (r as any).subType;
+        if (sub === "singles") amount = 500;
+        else if (sub === "doubles") amount = 1000;
+        else amount = 0; // not yet set
+      } else if (ev?.hasGenderRules) {
         if (r.gender === 'female' && ev.femaleRules?.registrationFee !== undefined) {
           amount = ev.femaleRules.registrationFee;
         } else if (r.gender === 'male' && ev.maleRules?.registrationFee !== undefined) {
@@ -1730,6 +1736,25 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                           >
                             <Clock className="w-3.5 h-3.5" />
                           </button>
+                        )}
+
+                        {/* Super Admin + Admin Only: Table Tennis Singles/Doubles selector */}
+                        {(user.role === "super_admin" || user.role === "admin") && reg.eventId === "table_tennis_2026" && (
+                          <select
+                            value={(reg as any).subType || ""}
+                            onChange={async (e) => {
+                              const val = e.target.value;
+                              if (!val) return;
+                              await dbService.updateRegistrationSubType(reg.id, val);
+                              setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, subType: val } as any : r));
+                            }}
+                            className="text-[10px] bg-gray-900 border border-gray-700 text-gray-300 rounded px-1 py-0.5"
+                            title="Set Table Tennis type (Singles ₹500 / Doubles ₹1000)"
+                          >
+                            <option value="">TT Type?</option>
+                            <option value="singles">Singles ₹500</option>
+                            <option value="doubles">Doubles ₹1000</option>
+                          </select>
                         )}
 
                         {/* Super Admin Only: Quick Mark Paid button for offline / cash / other QR */}

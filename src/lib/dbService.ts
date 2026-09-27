@@ -2040,6 +2040,28 @@ export const dbService = {
 
 
 
+  async updateRegistrationSubType(id: string, subType: string): Promise<void> {
+    if (isFirebaseConfigured && db) {
+      try {
+        await updateDoc(doc(db, "registrations", id), {
+          subType,
+          updatedAt: new Date().toISOString()
+        });
+        return;
+      } catch (err) {
+        console.error("Firestore updateRegistrationSubType failed:", err);
+      }
+    }
+    const local = getLocal<Registration>("registrations", DEFAULT_REGISTRATIONS);
+    const index = local.findIndex(r => r.id === id);
+    if (index > -1) {
+      (local[index] as any).subType = subType;
+      setLocal("registrations", local);
+    }
+  },
+
+
+
   // 3. GALLERY
 
   async getGallery(): Promise<GalleryItem[]> {
