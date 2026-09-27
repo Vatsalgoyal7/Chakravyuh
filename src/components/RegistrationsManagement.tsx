@@ -1732,30 +1732,63 @@ export default function RegistrationsManagement({ user }: RegistrationsManagemen
                           </button>
                         )}
 
-                        {/* UTR Verify buttons — add-on, only shows when student submitted payment */}
+                        {/* Super Admin Only: Quick Mark Paid button for offline / cash / other QR */}
+                        {user.role === "super_admin" && reg.paymentStatus !== "payment_verified" && reg.paymentStatus !== "ims_student" && (
+                          <button
+                            onClick={async () => {
+                              const confirmMark = window.confirm(`[SUPER ADMIN] Mark payment as Verified for ${reg.teamName || reg.leadName} (${reg.eventTitle})?`);
+                              if (!confirmMark) return;
+                              await dbService.updatePaymentStatus(reg.id, "payment_verified", "Verified by Super Admin (Cash / Other QR)", user.displayName);
+                              setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, paymentStatus: "payment_verified" } : r));
+                            }}
+                            className="p-1.5 bg-emerald-950/40 hover:bg-emerald-500/20 border border-emerald-900/40 hover:border-emerald-500/50 text-emerald-400 rounded-lg transition-all"
+                            title="Super Admin Only: Mark as Paid (Cash / Other QR)"
+                          >
+                            <BadgeCheck className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {/* Super Admin Only: Resend Verified Pass Email */}
+                        {user.role === "super_admin" && (reg.status === "approved" || reg.paymentStatus === "payment_verified") && (
+                          <button
+                            onClick={async () => {
+                              const confirmResend = window.confirm(`[SUPER ADMIN] Resend verified sports ticket pass email to ${reg.leadName} (${reg.leadEmail})?`);
+                              if (!confirmResend) return;
+                              try {
+                                const ev = events.find(e => e.id === reg.eventId);
+                                const pdfBase64 = getEventPassPDFBase64(reg, ev);
+                                const subject = `[CHAKRAVYUH 2K26] Official Sports Ticket Pass - ${reg.eventTitle}`;
+                                const html = buildApprovalEmail(reg.leadName, reg.eventTitle, reg.trackingCode);
+                                const attachments = [{
+                                  filename: `Chakravyuh_Pass_${reg.trackingCode || reg.id}.pdf`,
+                                  content: pdfBase64,
+                                  encoding: "base64"
+                                }];
+                                await sendEmail({ to: reg.leadEmail, subject, html, attachments });
+                                alert(`Pass successfully emailed to ${reg.leadEmail}`);
+                              } catch (err) {
+                                console.error("Resend pass failed:", err);
+                                alert("Could not send email. Please check network.");
+                              }
+                            }}
+                            className="p-1.5 bg-blue-950/40 hover:bg-blue-500/20 border border-blue-900/40 hover:border-blue-500/50 text-blue-400 rounded-lg transition-all"
+                            title="Super Admin Only: Resend Verified Pass Email"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         {reg.paymentStatus === "payment_submitted" && canVerifyPayments(user) && (
-                          <>
-                            <button
-                              onClick={async () => {
-                                await dbService.updatePaymentStatus(reg.id, "payment_verified", "", user.displayName);
-                                setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, paymentStatus: "payment_verified" } : r));
-                              }}
-                              className="p-1.5 bg-blue-950/40 hover:bg-blue-500/20 border border-blue-900/40 hover:border-blue-500/50 text-blue-400 rounded-lg transition-all"
-                              title={`Verify payment — UTR: ${reg.utrNumber}`}
-                            >
-                              <BadgeCheck className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={async () => {
-                                await dbService.updatePaymentStatus(reg.id, "payment_rejected", "Payment could not be verified", user.displayName);
-                                setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, paymentStatus: "payment_rejected" } : r));
-                              }}
-                              className="p-1.5 bg-orange-950/40 hover:bg-orange-500/20 border border-orange-900/40 hover:border-orange-500/50 text-orange-400 rounded-lg transition-all"
-                              title="Reject payment"
-                            >
-                              <BadgeX className="w-3.5 h-3.5" />
-                            </button>
-                          </>
+                          <button
+                            onClick={async () => {
+                              await dbService.updatePaymentStatus(reg.id, "payment_rejected", "Payment could not be verified", user.displayName);
+                              setRegistrations(prev => prev.map(r => r.id === reg.id ? { ...r, paymentStatus: "payment_rejected" } : r));
+                            }}
+                            className="p-1.5 bg-orange-950/40 hover:bg-orange-500/20 border border-orange-900/40 hover:border-orange-500/50 text-orange-400 rounded-lg transition-all"
+                            title="Reject payment"
+                          >
+                            <BadgeX className="w-3.5 h-3.5" />
+                          </button>
                         )}
 
                         <button

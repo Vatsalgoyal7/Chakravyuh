@@ -1849,7 +1849,13 @@ export const dbService = {
 
         const regRef = doc(db, "registrations", id);
 
-        const updateData = { 
+        const currentDoc = await getDoc(regRef);
+
+        if (!currentDoc.exists()) throw new Error("Registration record not found");
+
+        const currentRegistration = { id: currentDoc.id, ...currentDoc.data() } as Registration;
+
+        const updateData: any = { 
 
           status, 
 
@@ -1863,11 +1869,14 @@ export const dbService = {
 
         };
 
-        const currentDoc = await getDoc(regRef);
-
-        if (!currentDoc.exists()) throw new Error("Registration record not found");
-
-        const currentRegistration = { id: currentDoc.id, ...currentDoc.data() } as Registration;
+        // For future approvals: if registration is approved and not IMSEC free student, auto-verify payment
+        if (status === "approved" && currentRegistration.paymentStatus !== "ims_student") {
+          updateData.paymentStatus = "payment_verified";
+          updateData.paymentVerifiedAt = timestamp;
+          if (!currentRegistration.utrNumber) {
+            updateData.utrNumber = "OFFLINE/VERIFIED";
+          }
+        }
 
         const batch = writeBatch(db);
 
