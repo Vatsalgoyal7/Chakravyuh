@@ -643,14 +643,14 @@ export default function AboutManagement() {
         {/* URL Input or Video File Upload */}
         <div className="space-y-2">
           <label className="block text-[11px] font-mono font-semibold uppercase tracking-widest text-gray-400">
-            YouTube URL / Direct Video URL OR Upload Video File
+            Google Drive Link / YouTube URL / Direct Video URL
           </label>
           <div className="flex flex-col sm:flex-row gap-3 items-stretch">
             <input
               type="text"
               value={videoUrl}
               onChange={e => setVideoUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=... or https://example.com/video.mp4"
+              placeholder="https://drive.google.com/file/d/... or YouTube link or .mp4 URL"
               className="flex-1 bg-[#080a0f] border border-white/10 rounded-xl px-4 py-3 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-orange-500/40 transition-all"
             />
             <label className="flex items-center justify-center gap-2 px-5 py-3 bg-[#12141a] hover:bg-orange-500/10 border border-gray-800 hover:border-orange-500/20 rounded-xl text-xs font-mono text-gray-300 font-bold cursor-pointer transition-all shrink-0">
@@ -669,7 +669,7 @@ export default function AboutManagement() {
               />
             </label>
           </div>
-          <p className="text-[10px] text-gray-500 font-mono">Supports YouTube watch links, direct .mp4 URLs, or local file uploads (max 1.5MB in local sandbox)</p>
+          <p className="text-[10px] text-gray-500 font-mono">Supports Google Drive links, YouTube watch/embed links, or direct .mp4 URLs (Note: Google Drive or YouTube links recommended for fast loading)</p>
         </div>
 
         {/* Preview if URL set */}
@@ -692,12 +692,23 @@ export default function AboutManagement() {
           onClick={async () => {
             setIsSavingVideo(true);
             setVideoSaveMsg(null);
+            
+            // Check for oversized base64 data string (Firestore 1MB doc limit)
+            if (videoUrl.trim().startsWith("data:video/") && videoUrl.length > 800000) {
+              setVideoSaveMsg({ 
+                type: "error", 
+                text: "✗ Uploaded video file is too large (>1MB database limit). Please paste a Google Drive link or YouTube link instead!" 
+              });
+              setIsSavingVideo(false);
+              return;
+            }
+
             try {
               await dbService.saveHomepageSettings({ videoUrl: videoUrl.trim(), videoEnabled });
               setVideoSaveMsg({ type: "success", text: "✓ Video settings saved successfully!" });
               setTimeout(() => setVideoSaveMsg(null), 3000);
             } catch {
-              setVideoSaveMsg({ type: "error", text: "✗ Failed to save. Please try again." });
+              setVideoSaveMsg({ type: "error", text: "✗ Failed to save. Please use a Google Drive or YouTube link." });
             } finally {
               setIsSavingVideo(false);
             }

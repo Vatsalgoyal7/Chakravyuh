@@ -85,16 +85,22 @@ export default function PublicHome({ onExploreEvents, onRegisterNow, onTrackStat
   const totalRegisteredAthletes = events.reduce((total, event) => total + (event.registrationCount || 0), 0);
   const collegesDisplay = totalRegisteredAthletes > 0 ? "2+" : 1;
 
-  const getEmbedUrl = (url: string): string => {
-    if (!url) return "";
-    if (url.includes("youtube.com/embed/")) return url;
+  const getEmbedUrlInfo = (url: string): { embedUrl: string; isIframe: boolean } => {
+    if (!url) return { embedUrl: "", isIframe: false };
+    
+    // 1. YouTube
+    if (url.includes("youtube.com/embed/")) return { embedUrl: url, isIframe: true };
     const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=0&rel=0`;
-    return url;
+    if (ytMatch) return { embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=0&rel=0`, isIframe: true };
+
+    // 2. Google Drive (view, open, uc links)
+    const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?id=)([a-zA-Z0-9_-]+)/);
+    if (driveMatch) return { embedUrl: `https://drive.google.com/file/d/${driveMatch[1]}/preview`, isIframe: true };
+
+    return { embedUrl: url, isIframe: false };
   };
 
-  const embedUrl = getEmbedUrl(videoSettings.videoUrl);
-  const isYoutube = embedUrl.includes("youtube.com/embed");
+  const { embedUrl, isIframe } = getEmbedUrlInfo(videoSettings.videoUrl);
 
   return (
     <div className="arena-shell text-white min-h-screen">
@@ -270,12 +276,12 @@ export default function PublicHome({ onExploreEvents, onRegisterNow, onTrackStat
                   className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black bg-[#0a0c10]"
                   style={{ aspectRatio: "16/9" }}
                 >
-                  {isYoutube ? (
+                  {isIframe ? (
                     <iframe
                       src={embedUrl}
                       title="Chakravyuh Event Video"
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
                   ) : (
