@@ -89,9 +89,17 @@ export default function PublicHome({ onExploreEvents, onRegisterNow, onTrackStat
     if (!url) return { embedUrl: "", isIframe: false };
     
     // 1. YouTube
-    if (url.includes("youtube.com/embed/")) return { embedUrl: url, isIframe: true };
+    if (url.includes("youtube.com/embed/")) {
+      const base = url.split("?")[0];
+      const match = base.match(/embed\/([a-zA-Z0-9_-]{11})/);
+      const playlistParam = match ? `&playlist=${match[1]}` : "";
+      return { embedUrl: `${base}?autoplay=1&mute=1&loop=1${playlistParam}&controls=1`, isIframe: true };
+    }
     const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-    if (ytMatch) return { embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=0&rel=0`, isIframe: true };
+    if (ytMatch) {
+      const id = ytMatch[1];
+      return { embedUrl: `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=1`, isIframe: true };
+    }
 
     // 2. Google Drive (view, open, uc links)
     const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?id=)([a-zA-Z0-9_-]+)/);
@@ -267,25 +275,32 @@ export default function PublicHome({ onExploreEvents, onRegisterNow, onTrackStat
             </div>
 
             {/* Right: video (if enabled) + countdown */}
-            <div className="lg:col-span-5 w-full flex flex-col gap-6 self-start">
+            <div className="lg:col-span-5 w-full flex flex-col gap-6 self-start max-w-full">
               {videoSettings.videoEnabled && videoSettings.videoUrl && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.6, delay: 0.15 }}
-                  className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black bg-[#0a0c10]"
-                  style={{ aspectRatio: "16/9" }}
+                  className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black bg-[#0a0c10] aspect-video"
                 >
                   {isIframe ? (
                     <iframe
                       src={embedUrl}
                       title="Chakravyuh Event Video"
-                      className="w-full h-full border-0"
+                      className="w-full h-full border-0 aspect-video"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
                   ) : (
-                    <video src={videoSettings.videoUrl} controls className="w-full h-full object-cover" />
+                    <video
+                      src={videoSettings.videoUrl}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      controls
+                      className="w-full h-full object-cover aspect-video"
+                    />
                   )}
                   <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ boxShadow: "inset 0 0 0 1px rgba(var(--theme-accent-rgb),0.15)" }} />
                 </motion.div>
