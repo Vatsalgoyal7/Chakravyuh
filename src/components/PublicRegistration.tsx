@@ -132,6 +132,21 @@ export default function PublicRegistration({
     dbService.getPaymentConfig().then(cfg => setPaymentConfig(cfg));
   }, []);
 
+  const isEventClosedOrFull = (ev: SportEvent | null) => {
+    if (!ev) return { isClosed: false, isFull: false, isUnavailable: false, reason: "" };
+    const isClosed = ev.registrationDeadline ? new Date(ev.registrationDeadline).getTime() < Date.now() : false;
+    const isFull = (ev.registrationCount || 0) >= (ev.maxRegistrations || 32);
+    let reason = "";
+    if (isClosed) {
+      reason = `Registration deadline passed on ${new Date(ev.registrationDeadline).toLocaleString("en-IN")}`;
+    } else if (isFull) {
+      reason = `All ${ev.maxRegistrations} slots are filled`;
+    }
+    return { isClosed, isFull, isUnavailable: isClosed || isFull, reason };
+  };
+
+  const eventStatus = isEventClosedOrFull(selectedEvent);
+
   const getActiveMinTeamSize = () => {
     if (!selectedEvent) return 1;
     if (selectedEvent.hasGenderRules) {
@@ -263,6 +278,10 @@ export default function PublicRegistration({
     if (step === 1) {
       if (!selectedEvent) {
         setErrorMsg("Please select a sport discipline.");
+        return false;
+      }
+      if (eventStatus.isUnavailable) {
+        setErrorMsg(`⛔ REGISTRATIONS CLOSED: Submissions for ${selectedEvent.title} are closed (${eventStatus.reason}).`);
         return false;
       }
       return true;
@@ -946,13 +965,34 @@ export default function PublicRegistration({
                       onChange={(e) => handleEventChange(e.target.value)}
                       className={`w-full p-3.5 border rounded-2xl focus:border-orange-500 focus:outline-none transition-all cursor-pointer font-bold text-xs ${isWhiteBg ? 'bg-white border-gray-300 text-gray-900' : 'bg-[#08090c] border-white/[0.06] text-white'}`}
                     >
-                      {events.map((e) => (
-                        <option key={e.id} value={e.id} className={isWhiteBg ? 'bg-white text-gray-900' : 'bg-[#0c0d10] text-white'}>
-                          {e.title} ({e.category} &bull; {e.type})
-                        </option>
-                      ))}
+                      {events.map((e) => {
+                        const status = isEventClosedOrFull(e);
+                        const statusBadge = status.isClosed ? " ⛔ [CLOSED - DEADLINE PASSED]" : status.isFull ? " ⚠️ [SLOTS FILLED]" : "";
+                        return (
+                          <option key={e.id} value={e.id} className={isWhiteBg ? 'bg-white text-gray-900' : 'bg-[#0c0d10] text-white'}>
+                            {e.title} ({e.category} &bull; {e.type}){statusBadge}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
+
+                  {/* Red Pop-up Warning Banner if Event is Closed or Full */}
+                  {eventStatus.isUnavailable && (
+                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 space-y-2 font-mono text-xs animate-in fade-in duration-300">
+                      <div className="flex items-center gap-2 font-bold text-rose-400 text-sm">
+                        <ShieldAlert className="w-5 h-5 shrink-0 animate-bounce text-rose-400" />
+                        <span>REGISTRATIONS CLOSED FOR THIS SPORT</span>
+                      </div>
+                      <p className="text-gray-300 leading-relaxed">
+                        Online roster submissions for <strong className="text-white">{selectedEvent?.title}</strong> are no longer accepted on the public portal.
+                      </p>
+                      <div className="text-[11px] font-bold text-rose-300 bg-rose-950/40 p-2.5 rounded-xl border border-rose-900/40 flex items-center gap-1.5">
+                        <span>⚠️ Reason:</span>
+                        <span>{eventStatus.reason}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {selectedEvent && (
                     <div className={`p-4 rounded-2xl space-y-2 shadow-inner border ${isWhiteBg ? 'bg-gray-50 border-gray-300 text-gray-700' : 'bg-[#08090c]/60 border-white/[0.04] text-gray-400'}`}>
@@ -1402,8 +1442,13 @@ export default function PublicRegistration({
                 {currentStep < 5 ? (
                   <button
                     type="button"
+                    disabled={currentStep === 1 && eventStatus.isUnavailable}
                     onClick={handleNextStep}
-                    className="px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer outline-none ml-auto"
+                    className={`px-5 py-3 font-bold rounded-2xl transition-all flex items-center gap-1.5 outline-none ml-auto ${
+                      currentStep === 1 && eventStatus.isUnavailable
+                        ? "bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed"
+                        : "bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                    }`}
                   >
                     <span>Next Step</span>
                     <ChevronRight className="w-4 h-4" />
